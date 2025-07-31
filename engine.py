@@ -107,6 +107,10 @@ def main():
     # Player
     player = game.with_entity() + Player() + Position(20, 15) + Renderable("@")
 
+    # Movement
+    for _, position in game.iter_traits(Player, Position):
+        position.x += 10
+
     game.loop()
 
 
