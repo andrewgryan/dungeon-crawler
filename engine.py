@@ -58,6 +58,32 @@ class RenderSystem:
 
 
 @dataclass
+class MovementSystem:
+    width: int
+    height: int
+
+    def try_up(self, game):
+        for _, position in game.iter_traits(Player, Position):
+            if position.y - 1 >= 0:
+                position.y -= 1
+
+    def try_down(self, game):
+        for _, position in game.iter_traits(Player, Position):
+            if position.y + 1 < self.height:
+                position.y += 1
+
+    def try_left(self, game):
+        for _, position in game.iter_traits(Player, Position):
+            if position.x - 1 >= 0:
+                position.x -= 1
+
+    def try_right(self, game):
+        for _, position in game.iter_traits(Player, Position):
+            if position.x + 1 < self.width:
+                position.x += 1
+
+
+@dataclass
 class Game:
     render_system: RenderSystem
     entities: list[Entity] = field(default_factory=list)
@@ -83,6 +109,7 @@ def main(stdscr):
     stdscr.clear()
     curses.curs_set(False)
     render_system = RenderSystem(stdscr, width=40, height=30)
+    movement_system = MovementSystem(width=40, height=30)
 
     game = Game(render_system)
 
@@ -103,17 +130,13 @@ def main(stdscr):
         if key == "q":
             return
         elif key == "h":
-            for _, position in game.iter_traits(Player, Position):
-                position.x -= 1
+            movement_system.try_left(game)
         elif key == "j":
-            for _, position in game.iter_traits(Player, Position):
-                position.y += 1
+            movement_system.try_down(game)
         elif key == "k":
-            for _, position in game.iter_traits(Player, Position):
-                position.y -= 1
+            movement_system.try_up(game)
         elif key == "l":
-            for _, position in game.iter_traits(Player, Position):
-                position.x += 1
+            movement_system.try_right(game)
         game.loop()
 
     return
