@@ -1,6 +1,7 @@
 """Dungeon crawler"""
-import os
 from dataclasses import dataclass, field
+import curses
+from curses import wrapper
 
 
 @dataclass
@@ -24,11 +25,6 @@ class World:
         for j in range(self.h):
             row = "".join(self.buffer[j*self.w:(j+1)*self.w])
             print(row)
-
-
-class RenderSystem:
-    def cls(self):
-        os.system("clear")
 
 
 @dataclass
@@ -88,13 +84,44 @@ class Game:
             if entity.has(*traits):
                 yield entity.get(*traits)
 
+def draw(stdscr, window, width, height, px, py):
+    window.erase()
+    for i in range(0, width):
+        window.addch(0, i, ord('#'))
+        window.addch(height - 1, i, ord('#'))
+    stdscr.refresh()
+    for j in range(0, height):
+        window.addch(j, 0, ord('#'))
+        window.addch(j, width - 1, ord('#'))
+    window.addch(py, px, "@")
+    window.refresh()
+    stdscr.refresh()
 
-def main():
+
+def main(stdscr):
+    stdscr.clear()
+    curses.curs_set(False)
+    height, width, y, x = 30, 40, 2, 2
+    window = curses.newwin(height + 1, width + 1, y, x)
+
+    px, py = 12, 12
+    while True:
+        draw(stdscr, window, width, height, px, py)
+        key = stdscr.getkey()
+        if key == "q":
+            return
+        elif key == "h":
+            px -= 1
+        elif key == "j":
+            py += 1
+        elif key == "k":
+            py -= 1
+        elif key == "l":
+            px += 1
+
+    return
+
     game = Game(World(40, 30))
-
-    graphics = RenderSystem()
-    graphics.cls()
-
 
     # Wall
     for i in range(40):
@@ -115,4 +142,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    wrapper(main)
