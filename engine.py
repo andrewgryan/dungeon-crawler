@@ -13,6 +13,7 @@ class Position:
 @dataclass
 class Renderable:
     char: str = "@"
+    color: int = curses.COLOR_YELLOW
 
 
 @dataclass
@@ -39,6 +40,7 @@ class Entity:
 
 
 class RenderSystem:
+
     def __init__(self, stdscr, width: int, height: int):
         self.stdscr = stdscr
         y, x = 2, 2
@@ -49,8 +51,10 @@ class RenderSystem:
     def erase(self):
         self.window.erase()
 
-    def render(self, x, y, c):
-        self.window.addch(y, x, c)
+    def render(self, x, y, c, color):
+        # TODO: do not reuse color pairs for different colors
+        curses.init_pair(1, color, curses.COLOR_BLACK)
+        self.window.addch(y, x, c, curses.color_pair(1))
 
     def refresh(self):
         self.window.refresh()
@@ -96,7 +100,7 @@ class Game:
     def loop(self):
         self.render_system.erase()
         for position, renderable in self.iter_traits(Position, Renderable):
-            self.render_system.render(position.x, position.y, renderable.char)
+            self.render_system.render(position.x, position.y, renderable.char, renderable.color)
         self.render_system.refresh()
 
     def iter_traits(self, *traits):
@@ -122,7 +126,7 @@ def main(stdscr):
             wall = game.with_entity() + Position(i, j) + Renderable("#")
 
     # Player
-    player = game.with_entity() + Player() + Position(20, 15) + Renderable("@")
+    player = game.with_entity() + Player() + Position(20, 15) + Renderable("@", curses.COLOR_GREEN)
 
     # Movement
     while True:
