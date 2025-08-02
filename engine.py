@@ -17,6 +17,11 @@ class Renderable:
 
 
 @dataclass
+class Impassable:
+    ...
+
+
+@dataclass
 class Player:
     ...
 
@@ -66,25 +71,44 @@ class MovementSystem:
     width: int
     height: int
 
+
     def try_up(self, game):
         for _, position in game.iter_traits(Player, Position):
-            if position.y - 1 >= 0:
-                position.y -= 1
+            x, y = position.x, position.y
+            if y - 1 >= 0:
+                y -= 1
+            if self.passable(game, x, y):
+                position.x, position.y = x, y
 
     def try_down(self, game):
         for _, position in game.iter_traits(Player, Position):
-            if position.y + 1 < self.height:
-                position.y += 1
+            x, y = position.x, position.y
+            if y + 1 < self.height:
+                y += 1
+            if self.passable(game, x, y):
+                position.x, position.y = x, y
 
     def try_left(self, game):
         for _, position in game.iter_traits(Player, Position):
-            if position.x - 1 >= 0:
-                position.x -= 1
+            x, y = position.x, position.y
+            if x - 1 >= 0:
+                x -= 1
+            if self.passable(game, x, y):
+                position.x, position.y = x, y
 
     def try_right(self, game):
         for _, position in game.iter_traits(Player, Position):
-            if position.x + 1 < self.width:
-                position.x += 1
+            x, y = position.x, position.y
+            if x + 1 < self.width:
+                x += 1
+            if self.passable(game, x, y):
+                position.x, position.y = x, y
+
+    def passable(self, game, x: int, y: int) -> bool:
+        for _, position in game.iter_traits(Impassable, Position):
+            if (position.x, position.y) == (x, y):
+                return False
+        return True
 
 
 @dataclass
@@ -120,10 +144,10 @@ def main(stdscr):
     # Wall
     for i in range(40):
         for j in [0, 29]:
-            wall = game.with_entity() + Position(i, j) + Renderable("#")
+            wall = game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
     for i in [0, 39]:
         for j in range(30):
-            wall = game.with_entity() + Position(i, j) + Renderable("#")
+            wall = game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
 
     # Player
     player = game.with_entity() + Player() + Position(20, 15) + Renderable("@", curses.COLOR_GREEN)
