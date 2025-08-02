@@ -179,6 +179,21 @@ class MapSystem:
     screen_height: int
 
     def generate_level(self, game):
+        atlas = [True] * (self.screen_width * self.screen_height)
+
+        width, height = self.screen_width, self.screen_height
+        room = Room(0, 0, width // 2, height // 2)
+        for x in range(room.x, room.x + room.width):
+            for y in range(room.y, room.y + room.height):
+                atlas[x + self.screen_width * y] = False
+
+
+        for x in range(0, self.screen_width):
+            for y in range(0, self.screen_height):
+                if atlas[x + self.screen_width * y]:
+                    add_wall(game, x, y)
+
+    def _generate_level(self, game):
         width, height = self.screen_width, self.screen_height
         rooms = [
             Room(0, 0, width // 2, 2 * height // 3),
