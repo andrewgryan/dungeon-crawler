@@ -203,17 +203,28 @@ class MapSystem:
                 add_wall(game, i, j)
 
     def generate_corridor(self, game: Game, corridor: Corridor):
+        digging = False
         for x in range(corridor.x0, corridor.x1):
-            game.with_entity() + Position(x, corridor.y0 + 1) + Renderable("+") + Impassable()
-            game.with_entity() + Position(x, corridor.y0 - 1) + Renderable("+") + Impassable()
+            if digging:
+                self.place_wall(game, x, corridor.y0 + 1)
+                self.place_wall(game, x, corridor.y0 - 1)
+
+            # Check for walls
             for entity in game.iter_entity_with_traits(Position, Impassable, Renderable):
                 position, = entity.get(Position)
                 if (position.x, position.y) == (x, corridor.y0):
+                    digging = not digging
                     entity.reset()
-
 
         for y in range(corridor.y0, corridor.y1):
             game.with_entity() + Position(corridor.x1, y) + Renderable(".")
+
+    def place_wall(self, game, x, y):
+        if not self.is_wall(game, x, y):
+            game.with_entity() + Position(x, y) + Renderable("+") + Impassable()
+
+    def is_wall(self, game, x, y):
+        return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
 
 
 def add_wall(game, i, j):
