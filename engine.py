@@ -182,7 +182,7 @@ class MapSystem:
         width, height = self.screen_width, self.screen_height
         rooms = [
             Room(0, 0, width // 2, 2 * height // 3),
-            Room((width // 2) + 2, 0, (width // 2) - 4, 2 * height // 3)
+            Room((width // 2) + 2, height // 3, (width // 2) - 4, height // 3)
         ]
         for room in rooms:
             self.generate_room(game, room)
