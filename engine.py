@@ -43,6 +43,10 @@ class Entity:
         self.components[component.__class__] = component
         return self
 
+    def reset(self):
+        # Convert to bare entity
+        self.components = {}
+
 
 class RenderSystem:
     def __init__(self, stdscr, width: int, height: int):
@@ -137,38 +141,99 @@ class Game:
             if entity.has(*traits):
                 yield entity.get(*traits)
 
+    def iter_entity_with_traits(self, *traits):
+        for entity in self.entities:
+            if entity.has(*traits):
+                yield entity
+
+
+@dataclass
+class Room:
+    x: int
+    y: int
+    width: int
+    height: int
+
+    @property
+    def center(self):
+        return self.x + (self.width // 2), self.y + (self.height // 2)
+
+
+@dataclass
+class Corridor:
+    x0: int
+    y0: int
+    x1: int
+    y1: int
+
+
+@dataclass
+class Level:
+    rooms: list[Room]
+    corridors: list[Corridor]
+
+
+@dataclass
+class MapSystem:
+    screen_width: int
+    screen_height: int
+
+    def generate_level(self, game):
+        width, height = self.screen_width, self.screen_height
+        rooms = [
+            Room(0, 0, width // 2, 2 * height // 3),
+            Room((width // 2) + 2, 0, (width // 2) - 4, 2 * height // 3)
+        ]
+        for room in rooms:
+            self.generate_room(game, room)
+
+        # Corridors
+        x0, y0 = rooms[0].center
+        x1, y1 = rooms[1].center
+        corridor = Corridor(x0, y0, x1, y1)
+        self.generate_corridor(game, corridor)
+
+    def generate_room(self, game: Game, room: Room):
+        x, y, width, height = room.x, room.y, room.width, room.height
+        for i in range(x, x + width):
+            for j in [y, y + height - 1]:
+                add_wall(game, i, j)
+        for i in [x, x + width - 1]:
+            for j in range(y, y + height):
+                add_wall(game, i, j)
+
+    def generate_corridor(self, game: Game, corridor: Corridor):
+        for x in range(corridor.x0, corridor.x1):
+            game.with_entity() + Position(x, corridor.y0 + 1) + Renderable("+") + Impassable()
+            game.with_entity() + Position(x, corridor.y0 - 1) + Renderable("+") + Impassable()
+            for entity in game.iter_entity_with_traits(Position, Impassable, Renderable):
+                position, = entity.get(Position)
+                if (position.x, position.y) == (x, corridor.y0):
+                    entity.reset()
+
+
+        for y in range(corridor.y0, corridor.y1):
+            game.with_entity() + Position(corridor.x1, y) + Renderable(".")
+
+
+def add_wall(game, i, j):
+    return game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
+
 
 def main(stdscr):
     stdscr.clear()
     curses.curs_set(False)
-    curses.init_pair(1, 0, curses.COLOR_BLACK)
-    stdscr.addch(0, 0, "*", curses.color_pair(1))
-    curses.init_pair(2, 1, curses.COLOR_BLACK)
-    stdscr.addch(0, 1, "*", curses.color_pair(2))
-    curses.init_pair(3, 2, curses.COLOR_BLACK)
-    stdscr.addch(0, 2, "*", curses.color_pair(3))
-    curses.init_pair(4, 3, curses.COLOR_BLACK)
-    stdscr.addch(0, 3, "*", curses.color_pair(4))
-    curses.init_pair(5, 4, curses.COLOR_BLACK)
-    stdscr.addch(0, 4, "*", curses.color_pair(5))
-    curses.init_pair(6, 5, curses.COLOR_BLACK)
-    stdscr.addch(0, 5, "*", curses.color_pair(6))
-    curses.init_pair(7, 6, curses.COLOR_BLACK)
-    stdscr.addch(0, 6, "*", curses.color_pair(7))
-    stdscr.getkey()
 
-    render_system = RenderSystem(stdscr, width=40, height=30)
-    movement_system = MovementSystem(width=40, height=30)
+    width = curses.COLS - 3
+    height = curses.LINES - 3
+    render_system = RenderSystem(stdscr, width=width, height=height)
+    movement_system = MovementSystem(width=width, height=height)
 
     game = Game(render_system)
 
-    # Wall
-    for i in range(40):
-        for j in [0, 29]:
-            wall = game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
-    for i in [0, 39]:
-        for j in range(30):
-            wall = game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
+    map_system = MapSystem(screen_width=width, screen_height=height)
+    map_system.generate_level(game)
+
 
     # Player
     player = game.with_entity() + Player() + Position(20, 15) + Renderable("@", curses.COLOR_GREEN)
