@@ -13,7 +13,7 @@ class Position:
 @dataclass
 class Renderable:
     char: str = "@"
-    color: int = curses.COLOR_YELLOW
+    color: int = curses.COLOR_BLUE
 
 
 @dataclass
@@ -45,7 +45,6 @@ class Entity:
 
 
 class RenderSystem:
-
     def __init__(self, stdscr, width: int, height: int):
         self.stdscr = stdscr
         y, x = 2, 2
@@ -53,13 +52,19 @@ class RenderSystem:
         self.width = width
         self.height = height
 
+        self._number = 1
+        self._numbers = {}
+
     def erase(self):
         self.window.erase()
 
     def render(self, x, y, c, color):
-        # TODO: do not reuse color pairs for different colors
-        curses.init_pair(1, color, curses.COLOR_BLACK)
-        self.window.addch(y, x, c, curses.color_pair(1))
+        if color not in self._numbers:
+            self._numbers[color] = self._number
+            self._number += 1
+        number = self._numbers[color]
+        curses.init_pair(number, color, curses.COLOR_BLACK)
+        self.window.addch(y, x, c, curses.color_pair(number))
 
     def refresh(self):
         self.window.refresh()
@@ -136,6 +141,22 @@ class Game:
 def main(stdscr):
     stdscr.clear()
     curses.curs_set(False)
+    curses.init_pair(1, 0, curses.COLOR_BLACK)
+    stdscr.addch(0, 0, "*", curses.color_pair(1))
+    curses.init_pair(2, 1, curses.COLOR_BLACK)
+    stdscr.addch(0, 1, "*", curses.color_pair(2))
+    curses.init_pair(3, 2, curses.COLOR_BLACK)
+    stdscr.addch(0, 2, "*", curses.color_pair(3))
+    curses.init_pair(4, 3, curses.COLOR_BLACK)
+    stdscr.addch(0, 3, "*", curses.color_pair(4))
+    curses.init_pair(5, 4, curses.COLOR_BLACK)
+    stdscr.addch(0, 4, "*", curses.color_pair(5))
+    curses.init_pair(6, 5, curses.COLOR_BLACK)
+    stdscr.addch(0, 5, "*", curses.color_pair(6))
+    curses.init_pair(7, 6, curses.COLOR_BLACK)
+    stdscr.addch(0, 6, "*", curses.color_pair(7))
+    stdscr.getkey()
+
     render_system = RenderSystem(stdscr, width=40, height=30)
     movement_system = MovementSystem(width=40, height=30)
 
