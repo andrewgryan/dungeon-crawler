@@ -58,7 +58,7 @@ class Entity:
 class RenderSystem:
     def __init__(self, stdscr, width: int, height: int):
         self.stdscr = stdscr
-        y, x = 2, 2
+        y, x = 0, 0
         self.window = curses.newwin(height + 1, width + 1, y, x)
         self.width = width
         self.height = height
@@ -261,6 +261,7 @@ class DialogSystem:
             "",
             "",
             "press '?' to toggle dialog",
+            "use 'j' and 'k' to scroll dialog",
         ]
         wrapped = [self.text_wrapper.fill(p) for p in paragraphs]
         lines = []
@@ -328,8 +329,8 @@ def dungeon_crawler(stdscr):
     stdscr.clear()
     curses.curs_set(False)
 
-    width = curses.COLS - 3
-    height = curses.LINES - 3
+    width = curses.COLS
+    height = curses.LINES
     render_system = RenderSystem(stdscr, width=width, height=height)
     movement_system = MovementSystem(width=width, height=height)
 
@@ -338,6 +339,8 @@ def dungeon_crawler(stdscr):
     map_system = MapSystem(screen_width=width, screen_height=height)
     map_system.generate_level(game)
 
+    # Narrator, inventory, etc.
+    dialog_system = DialogSystem(stdscr)
 
     # Player
     player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_GREEN)
@@ -349,28 +352,44 @@ def dungeon_crawler(stdscr):
     last_paint = datetime.now()
     refresh_rate = timedelta(microseconds=16.7 * 1000)
     while True:
+
         # Throttle render system
         current_time = datetime.now()
         time_since_paint = current_time - last_paint
         if time_since_paint > refresh_rate:
-            render_system.paint(game)
+            # Dialog is in the top-layer
+            if dialog_system.dialog_open:
+                dialog_system.paint()
+                dialog_system.refresh()
+            else:
+                render_system.paint(game)
             last_paint = current_time
         else:
             # Wait for render to complete
             continue
 
+
         # Handle user input
         key = stdscr.getkey()
         if key == "q":
             return
-        elif key == "h":
-            movement_system.try_left(player_position)
-        elif key == "j":
-            movement_system.try_down(player_position)
-        elif key == "k":
-            movement_system.try_up(player_position)
-        elif key == "l":
-            movement_system.try_right(player_position)
+        elif key == "?":
+            dialog_system.toggle()
+
+        if dialog_system.dialog_open:
+            if key == "j":
+                dialog_system.scroll_down()
+            elif key == "k":
+                dialog_system.scroll_up()
+        else:
+            if key == "h":
+                movement_system.try_left(player_position)
+            elif key == "j":
+                movement_system.try_down(player_position)
+            elif key == "k":
+                movement_system.try_up(player_position)
+            elif key == "l":
+                movement_system.try_right(player_position)
 
     return
 
