@@ -243,8 +243,9 @@ def main():
 class DialogSystem:
     def __init__(self, stdscr):
         self.stdscr = stdscr
-        self.text_wrapper = TextWrapper(width=38)
-        self.window = curses.newwin(curses.LINES, curses.COLS, 0, 0)
+        self.width = 40
+        self.text_wrapper = TextWrapper(width=self.width - 2)
+        self.window = curses.newwin(curses.LINES, self.width, 0, curses.COLS - self.width)
         self.dialog_open = True
         self.scroll_index = 0
 
@@ -274,20 +275,18 @@ class DialogSystem:
         self.dialog_open = not self.dialog_open
 
     def paint(self):
+        self.window.erase()
         if self.dialog_open:
-            self.window.erase()
             # Draw outline
             y0 = 0
             y1 = curses.LINES - 2
-            x1 = curses.COLS - 2
-            x0 = x1 - 40
+            x1 = self.width - 1 # curses.COLS - 2
+            x0 = 0 # x1 - 40
             rectangle = curses.textpad.rectangle(self.window, y0, x0, y1, x1)
 
             # Write text
             for i, line in enumerate(self.displayed_lines[self.scroll_index:]):
                 self.window.addstr(i + 1, x0 + 2, line)
-        else:
-            self.window.erase()
 
     def scroll_up(self):
         if self.scroll_index - 1 > 0:
