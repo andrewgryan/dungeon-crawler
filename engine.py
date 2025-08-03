@@ -89,37 +89,33 @@ class MovementSystem:
             i = position.x + self.width * position.y
             self.impassable_tiles[i] = 1
 
-    def try_up(self, game):
-        for _, position in game.iter_traits(Player, Position):
-            x, y = position.x, position.y
-            if y - 1 >= 0:
-                y -= 1
-            if self.passable(x, y):
-                position.x, position.y = x, y
+    def try_up(self, position):
+        x, y = position.x, position.y
+        if y - 1 >= 0:
+            y -= 1
+        if self.passable(x, y):
+            position.x, position.y = x, y
 
-    def try_down(self, game):
-        for _, position in game.iter_traits(Player, Position):
-            x, y = position.x, position.y
-            if y + 1 < self.height:
-                y += 1
-            if self.passable(x, y):
-                position.x, position.y = x, y
+    def try_down(self, position):
+        x, y = position.x, position.y
+        if y + 1 < self.height:
+            y += 1
+        if self.passable(x, y):
+            position.x, position.y = x, y
 
-    def try_left(self, game):
-        for _, position in game.iter_traits(Player, Position):
-            x, y = position.x, position.y
-            if x - 1 >= 0:
-                x -= 1
-            if self.passable(x, y):
-                position.x, position.y = x, y
+    def try_left(self, position):
+        x, y = position.x, position.y
+        if x - 1 >= 0:
+            x -= 1
+        if self.passable(x, y):
+            position.x, position.y = x, y
 
-    def try_right(self, game):
-        for _, position in game.iter_traits(Player, Position):
-            x, y = position.x, position.y
-            if x + 1 < self.width:
-                x += 1
-            if self.passable(x, y):
-                position.x, position.y = x, y
+    def try_right(self, position):
+        x, y = position.x, position.y
+        if x + 1 < self.width:
+            x += 1
+        if self.passable(x, y):
+            position.x, position.y = x, y
 
     def passable(self, x: int, y: int) -> bool:
         i = x + self.width * y
@@ -268,7 +264,8 @@ def main(stdscr):
 
 
     # Player
-    player = game.with_entity() + Player() + Position(20, 15) + Renderable("@", curses.COLOR_GREEN)
+    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_GREEN)
+    player_position, = player.get(Position)
 
     # Movement
     movement_system.cache_impassable(game)
@@ -277,13 +274,13 @@ def main(stdscr):
         if key == "q":
             return
         elif key == "h":
-            movement_system.try_left(game)
+            movement_system.try_left(player_position)
         elif key == "j":
-            movement_system.try_down(game)
+            movement_system.try_down(player_position)
         elif key == "k":
-            movement_system.try_up(game)
+            movement_system.try_up(player_position)
         elif key == "l":
-            movement_system.try_right(game)
+            movement_system.try_right(player_position)
         game.loop()
 
     return
