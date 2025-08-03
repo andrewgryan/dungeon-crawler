@@ -1,4 +1,5 @@
 """Dungeon crawler"""
+from array import array
 from dataclasses import dataclass, field
 import curses
 from curses import wrapper
@@ -80,13 +81,20 @@ class MovementSystem:
     width: int
     height: int
 
+    def __post_init__(self):
+        self.impassable_tiles = array("B", (0 for _ in range(self.width * self.height)))
+
+    def cache_impassable(self, game):
+        for _, position in game.iter_traits(Impassable, Position):
+            i = position.x + self.width * position.y
+            self.impassable_tiles[i] = 1
 
     def try_up(self, game):
         for _, position in game.iter_traits(Player, Position):
             x, y = position.x, position.y
             if y - 1 >= 0:
                 y -= 1
-            if self.passable(game, x, y):
+            if self.passable(x, y):
                 position.x, position.y = x, y
 
     def try_down(self, game):
@@ -94,7 +102,7 @@ class MovementSystem:
             x, y = position.x, position.y
             if y + 1 < self.height:
                 y += 1
-            if self.passable(game, x, y):
+            if self.passable(x, y):
                 position.x, position.y = x, y
 
     def try_left(self, game):
@@ -102,7 +110,7 @@ class MovementSystem:
             x, y = position.x, position.y
             if x - 1 >= 0:
                 x -= 1
-            if self.passable(game, x, y):
+            if self.passable(x, y):
                 position.x, position.y = x, y
 
     def try_right(self, game):
@@ -110,14 +118,12 @@ class MovementSystem:
             x, y = position.x, position.y
             if x + 1 < self.width:
                 x += 1
-            if self.passable(game, x, y):
+            if self.passable(x, y):
                 position.x, position.y = x, y
 
-    def passable(self, game, x: int, y: int) -> bool:
-        for _, position in game.iter_traits(Impassable, Position):
-            if (position.x, position.y) == (x, y):
-                return False
-        return True
+    def passable(self, x: int, y: int) -> bool:
+        i = x + self.width * y
+        return not bool(self.impassable_tiles[i])
 
 
 @dataclass
@@ -265,6 +271,7 @@ def main(stdscr):
     player = game.with_entity() + Player() + Position(20, 15) + Renderable("@", curses.COLOR_GREEN)
 
     # Movement
+    movement_system.cache_impassable(game)
     while True:
         key = stdscr.getkey()
         if key == "q":
