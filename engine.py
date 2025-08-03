@@ -148,11 +148,6 @@ class Game:
             if entity.has(*traits):
                 yield entity.get(*traits)
 
-    def iter_entity_with_traits(self, *traits):
-        for entity in self.entities:
-            if entity.has(*traits):
-                yield entity
-
 
 @dataclass
 class Room:
@@ -227,59 +222,10 @@ class MapSystem:
         for x in range(0, self.screen_width):
             for y in range(0, self.screen_height):
                 if atlas[x + self.screen_width * y]:
-                    add_wall(game, x, y)
-
-    def _generate_level(self, game):
-        width, height = self.screen_width, self.screen_height
-        rooms = [
-            Room(0, 0, width // 2, 2 * height // 3),
-            Room((width // 2) + 2, height // 3, (width // 2) - 4, height // 3)
-        ]
-        for room in rooms:
-            self.generate_room(game, room)
-
-        # Corridors
-        x0, y0 = rooms[0].center
-        x1, y1 = rooms[1].center
-        corridor = Corridor(x0, y0, x1, y1)
-        self.generate_corridor(game, corridor)
-
-    def generate_room(self, game: Game, room: Room):
-        x, y, width, height = room.x, room.y, room.width, room.height
-        for i in range(x, x + width):
-            for j in [y, y + height - 1]:
-                add_wall(game, i, j)
-        for i in [x, x + width - 1]:
-            for j in range(y, y + height):
-                add_wall(game, i, j)
-
-    def generate_corridor(self, game: Game, corridor: Corridor):
-        digging = False
-        for x in range(corridor.x0, corridor.x1):
-            if digging:
-                self.place_wall(game, x, corridor.y0 + 1)
-                self.place_wall(game, x, corridor.y0 - 1)
-
-            # Check for walls
-            for entity in game.iter_entity_with_traits(Position, Impassable, Renderable):
-                position, = entity.get(Position)
-                if (position.x, position.y) == (x, corridor.y0):
-                    digging = not digging
-                    entity.reset()
-
-        for y in range(corridor.y0, corridor.y1):
-            game.with_entity() + Position(corridor.x1, y) + Renderable(".")
-
-    def place_wall(self, game, x, y):
-        if not self.is_wall(game, x, y):
-            game.with_entity() + Position(x, y) + Renderable("+") + Impassable()
+                    game.with_entity() + Position(x, y) + Renderable("#") + Impassable()
 
     def is_wall(self, game, x, y):
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
-
-
-def add_wall(game, i, j):
-    return game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
 
 
 def main():
