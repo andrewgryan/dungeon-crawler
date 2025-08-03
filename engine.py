@@ -1,4 +1,5 @@
 """Dungeon crawler"""
+from datetime import datetime, timedelta
 from array import array
 from dataclasses import dataclass, field
 import curses
@@ -59,6 +60,12 @@ class RenderSystem:
 
         self._number = 1
         self._numbers = {}
+
+    def paint(self, game):
+        self.erase()
+        for position, renderable in game.iter_traits(Position, Renderable):
+            self.render(position.x, position.y, renderable.char, renderable.color)
+        self.refresh()
 
     def erase(self):
         self.window.erase()
@@ -131,12 +138,6 @@ class Game:
         entity = Entity()
         self.entities.append(entity)
         return entity
-
-    def loop(self):
-        self.render_system.erase()
-        for position, renderable in self.iter_traits(Position, Renderable):
-            self.render_system.render(position.x, position.y, renderable.char, renderable.color)
-        self.render_system.refresh()
 
     def iter_traits(self, *traits):
         for entity in self.entities:
@@ -269,7 +270,18 @@ def main(stdscr):
 
     # Movement
     movement_system.cache_impassable(game)
+    render_system.paint(game)
+    last_paint = datetime.now()
+    refresh_rate = timedelta(microseconds=16.7 * 1000)
     while True:
+        # Throttle render system
+        current_time = datetime.now()
+        time_since_paint = current_time - last_paint
+        if time_since_paint > refresh_rate:
+            render_system.paint(game)
+            last_paint = current_time
+
+        # Handle user input
         key = stdscr.getkey()
         if key == "q":
             return
@@ -281,7 +293,6 @@ def main(stdscr):
             movement_system.try_up(player_position)
         elif key == "l":
             movement_system.try_right(player_position)
-        game.loop()
 
     return
 
