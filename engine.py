@@ -24,9 +24,18 @@ class Renderable:
 
 
 @dataclass
+class Visible:
+    ...
+
+
+# TERRAIN
+
+@dataclass
 class Impassable:
     ...
 
+
+# NON-PLAYER CHARACTERS
 
 @dataclass
 class PatrolBot:
@@ -60,6 +69,8 @@ class Entity:
         self.components = {}
 
 
+# SYSTEMS
+
 class RenderSystem:
     def __init__(self, stdscr, width: int, height: int):
         self.stdscr = stdscr
@@ -73,7 +84,7 @@ class RenderSystem:
 
     def paint(self, game):
         self.erase()
-        for position, renderable in game.iter_traits(Position, Renderable):
+        for position, renderable, _ in game.iter_traits(Position, Renderable, Visible):
             self.render(position.x, position.y, renderable.char, renderable.color)
         self.refresh()
 
@@ -229,24 +240,13 @@ class MapSystem:
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", default="game", help="executable mode, 'game' or 'debug'")
-    args = parser.parse_args()
-    if args.mode == "game":
-        wrapper(dungeon_crawler)
-    else:
-        wrapper(debug)
-    return
-
-
 class DialogSystem:
-    def __init__(self, stdscr):
+    def __init__(self, stdscr, dialog_open=False):
         self.stdscr = stdscr
         self.width = 40
         self.text_wrapper = TextWrapper(width=self.width - 2)
         self.window = curses.newwin(curses.LINES, self.width, 0, curses.COLS - self.width)
-        self.dialog_open = True
+        self.dialog_open = dialog_open
         self.scroll_index = 0
 
         # Content
@@ -300,28 +300,15 @@ class DialogSystem:
         self.window.refresh()
 
 
-def debug(stdscr):
-    # Interactive systems development
-    stdscr.clear()
-    window = curses.newwin(curses.LINES, curses.COLS, 0, 0)
-    window.refresh()
-    stdscr.refresh()
-
-    dialog_system = DialogSystem(stdscr)
-
-    while True:
-        dialog_system.paint()
-        dialog_system.refresh()
-        stdscr.refresh()
-        key = stdscr.getch()
-        if key == ord("q"):
-            return
-        elif key == ord("?"):
-            dialog_system.toggle()
-        elif key == ord("j"):
-            dialog_system.scroll_down()
-        elif key == ord("k"):
-            dialog_system.scroll_up()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", default="game", help="executable mode, 'game' or 'debug'")
+    args = parser.parse_args()
+    if args.mode == "game":
+        wrapper(dungeon_crawler)
+    else:
+        print(f"'{args.mode}' mode not implemented")
+    return
 
 
 def dungeon_crawler(stdscr):
@@ -329,6 +316,7 @@ def dungeon_crawler(stdscr):
     stdscr.clear()
     curses.curs_set(False)
 
+    # Configure screen
     width = curses.COLS
     height = curses.LINES
     render_system = RenderSystem(stdscr, width=width, height=height)
@@ -347,7 +335,7 @@ def dungeon_crawler(stdscr):
     dialog_system = DialogSystem(stdscr)
 
     # Player
-    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW)
+    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Visible()
     player_position, = player.get(Position)
 
     # Movement
