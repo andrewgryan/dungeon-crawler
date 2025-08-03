@@ -29,6 +29,11 @@ class Impassable:
 
 
 @dataclass
+class PatrolBot:
+    ...
+
+
+@dataclass
 class Player:
     ...
 
@@ -170,38 +175,34 @@ class Corridor:
 
 
 @dataclass
-class Level:
-    rooms: list[Room]
-    corridors: list[Corridor]
-
-
-@dataclass
 class MapSystem:
     screen_width: int
     screen_height: int
 
-    def generate_level(self, game):
-        atlas = [True] * (self.screen_width * self.screen_height)
-
-        width, height = self.screen_width, self.screen_height
-
+    @property
+    def rooms(self):
         # Carve out rooms
-        rooms = [
+        width, height = self.screen_width, self.screen_height
+        return [
             Room(1, 1, width // 2, height // 2),
             Room(1, 3 * (height // 4), width // 4, height // 4),
             Room(3 * (width // 4), 1, width // 4, height // 4),
             Room(2 * (width // 3), 2 * (height // 3) - 1, width // 3, height // 3)
         ]
 
-        for room in rooms:
+    def generate_level(self, game):
+        atlas = [True] * (self.screen_width * self.screen_height)
+
+        # Rooms
+        for room in self.rooms:
             for x in range(room.x, room.x + room.width):
                 for y in range(room.y, room.y + room.height):
                     atlas[x + self.screen_width * y] = False
 
         # Connect rooms with corridors
         for a, b, x_then_y in [(0, 3, False), (2, 3, False)]:
-            x0, y0 = rooms[a].center
-            x1, y1 = rooms[b].center
+            x0, y0 = self.rooms[a].center
+            x1, y1 = self.rooms[b].center
             corridor = Corridor(x0, y0, x1, y1)
             if x_then_y:
                 for x in range(corridor.x0, corridor.x1):
@@ -339,11 +340,15 @@ def dungeon_crawler(stdscr):
     map_system = MapSystem(screen_width=width, screen_height=height)
     map_system.generate_level(game)
 
+    for room in map_system.rooms:
+        x, y = room.center
+        game.with_entity() + PatrolBot() + Renderable("B", curses.COLOR_GREEN) + Position(x, y) + Impassable()
+
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
 
     # Player
-    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_GREEN)
+    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW)
     player_position, = player.get(Position)
 
     # Movement
