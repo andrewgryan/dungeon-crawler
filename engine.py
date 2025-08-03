@@ -80,7 +80,7 @@ class RenderSystem:
 
     def refresh(self):
         self.window.refresh()
-        self.stdscr.refresh()
+        # self.stdscr.refresh()
 
 
 @dataclass
@@ -131,7 +131,6 @@ class MovementSystem:
 
 @dataclass
 class Game:
-    render_system: RenderSystem
     entities: list[Entity] = field(default_factory=list)
 
     def with_entity(self):
@@ -185,12 +184,41 @@ class MapSystem:
         atlas = [True] * (self.screen_width * self.screen_height)
 
         width, height = self.screen_width, self.screen_height
-        room = Room(0, 0, width // 2, height // 2)
-        for x in range(room.x, room.x + room.width):
-            for y in range(room.y, room.y + room.height):
-                atlas[x + self.screen_width * y] = False
 
+        # Carve out rooms
+        rooms = [
+            Room(1, 1, width // 2, height // 2),
+            Room(1, 3 * (height // 4), width // 4, height // 4),
+            Room(3 * (width // 4), 1, width // 4, height // 4),
+            Room(2 * (width // 3), 2 * (height // 3) - 1, width // 3, height // 3)
+        ]
 
+        for room in rooms:
+            for x in range(room.x, room.x + room.width):
+                for y in range(room.y, room.y + room.height):
+                    atlas[x + self.screen_width * y] = False
+
+        # Connect rooms with corridors
+        for a, b, x_then_y in [(0, 3, False), (2, 3, False)]:
+            x0, y0 = rooms[a].center
+            x1, y1 = rooms[b].center
+            corridor = Corridor(x0, y0, x1, y1)
+            if x_then_y:
+                for x in range(corridor.x0, corridor.x1):
+                    atlas[x + self.screen_width * corridor.y0] = False
+                for y in range(corridor.y0, corridor.y1):
+                    atlas[corridor.x1 + self.screen_width * y] = False
+            else:
+                for y in range(corridor.y0, corridor.y1):
+                    x = corridor.x0
+                    atlas[x + self.screen_width * y] = False
+                    atlas[x + 1 + self.screen_width * y] = False
+                for x in range(corridor.x0, corridor.x1):
+                    y = corridor.y1
+                    atlas[x + self.screen_width * y] = False
+                    atlas[x + self.screen_width * (y + 1)] = False
+
+        # Place wall tiles
         for x in range(0, self.screen_width):
             for y in range(0, self.screen_height):
                 if atlas[x + self.screen_width * y]:
@@ -258,7 +286,7 @@ def main(stdscr):
     render_system = RenderSystem(stdscr, width=width, height=height)
     movement_system = MovementSystem(width=width, height=height)
 
-    game = Game(render_system)
+    game = Game()
 
     map_system = MapSystem(screen_width=width, screen_height=height)
     map_system.generate_level(game)
@@ -280,6 +308,9 @@ def main(stdscr):
         if time_since_paint > refresh_rate:
             render_system.paint(game)
             last_paint = current_time
+        else:
+            # Wait for render to complete
+            continue
 
         # Handle user input
         key = stdscr.getkey()
