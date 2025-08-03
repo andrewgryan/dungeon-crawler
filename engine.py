@@ -1,8 +1,13 @@
 """Dungeon crawler"""
+from textwrap import TextWrapper
+import argparse
 from datetime import datetime, timedelta
 from array import array
 from dataclasses import dataclass, field
 import curses
+import curses.ascii
+import curses.textpad
+
 from curses import wrapper
 
 
@@ -277,7 +282,103 @@ def add_wall(game, i, j):
     return game.with_entity() + Position(i, j) + Renderable("#") + Impassable()
 
 
-def main(stdscr):
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", default="game", help="executable mode, 'game' or 'debug'")
+    args = parser.parse_args()
+    if args.mode == "game":
+        wrapper(dungeon_crawler)
+    else:
+        wrapper(debug)
+    return
+
+
+class DialogSystem:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.text_wrapper = TextWrapper(width=38)
+        self.window = curses.newwin(curses.LINES, curses.COLS, 0, 0)
+        self.dialog_open = True
+        self.scroll_index = 0
+
+        # Content
+        paragraphs = [
+            "Greetings, Traveller!",
+            "",
+            "Welcome to Dungeon Crawler! The underground realm is all we have now, since the overworld fell."
+            "",
+            "",
+            "Exploration is the name of the game. Survive by your wits. Accumulate technology to help you on your way."
+            "",
+            "",
+            "And most importantly, trust no one."
+            "",
+            "",
+            "press '?' to toggle dialog",
+        ]
+        wrapped = [self.text_wrapper.fill(p) for p in paragraphs]
+        lines = []
+        for p in wrapped:
+            lines += p.split("\n")
+        self.displayed_lines = lines
+
+    def toggle(self):
+        self.dialog_open = not self.dialog_open
+
+    def paint(self):
+        if self.dialog_open:
+            self.window.erase()
+            # Draw outline
+            y0 = 0
+            y1 = curses.LINES - 2
+            x1 = curses.COLS - 2
+            x0 = x1 - 40
+            rectangle = curses.textpad.rectangle(self.window, y0, x0, y1, x1)
+
+            # Write text
+            for i, line in enumerate(self.displayed_lines[self.scroll_index:]):
+                self.window.addstr(i + 1, x0 + 2, line)
+        else:
+            self.window.erase()
+
+    def scroll_up(self):
+        if self.scroll_index - 1 > 0:
+            self.scroll_index -= 1
+
+    def scroll_down(self):
+        if self.scroll_index + 1 < len(self.displayed_lines):
+            self.scroll_index += 1
+
+    def refresh(self):
+        self.window.refresh()
+
+
+def debug(stdscr):
+    # Interactive systems development
+    stdscr.clear()
+    window = curses.newwin(curses.LINES, curses.COLS, 0, 0)
+    window.refresh()
+    stdscr.refresh()
+
+    dialog_system = DialogSystem(stdscr)
+
+    while True:
+        dialog_system.paint()
+        dialog_system.refresh()
+        stdscr.refresh()
+        key = stdscr.getch()
+        if key == ord("q"):
+            return
+        elif key == ord("?"):
+            dialog_system.toggle()
+        elif key == ord("j"):
+            dialog_system.scroll_down()
+        elif key == ord("k"):
+            dialog_system.scroll_up()
+
+
+def dungeon_crawler(stdscr):
+    # Main program
     stdscr.clear()
     curses.curs_set(False)
 
@@ -329,4 +430,4 @@ def main(stdscr):
 
 
 if __name__ == "__main__":
-    wrapper(main)
+    main()
