@@ -386,5 +386,12 @@ def dungeon_crawler(stdscr):
     return
 
 
+# TESTS
+
+def test_entity():
+    game = Game()
+    game.with_entity() + Player()
+    assert len(list(game.iter_traits(Player))) == 1
+
 if __name__ == "__main__":
     main()
