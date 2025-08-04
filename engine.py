@@ -1,4 +1,5 @@
 """Dungeon crawler"""
+from enum import Enum
 from textwrap import TextWrapper
 import argparse
 from datetime import datetime, timedelta
@@ -37,9 +38,16 @@ class Impassable:
 
 # NON-PLAYER CHARACTERS
 
+class Compass(Enum):
+    N = 1
+    S = 2
+    E = 3
+    W = 4
+
+
 @dataclass
 class PatrolBot:
-    ...
+    direction: Compass
 
 
 @dataclass
@@ -71,6 +79,7 @@ class Entity:
 
 # SYSTEMS
 
+
 class RenderSystem:
     def __init__(self, stdscr, width: int, height: int):
         self.stdscr = stdscr
@@ -84,7 +93,7 @@ class RenderSystem:
 
     def paint(self, game):
         self.erase()
-        for position, renderable, _ in game.iter_traits(Position, Renderable, Visible):
+        for position, renderable in game.iter_traits(Position, Renderable):
             self.render(position.x, position.y, renderable.char, renderable.color)
         self.refresh()
 
@@ -149,6 +158,32 @@ class MovementSystem:
         i = x + self.width * y
         return not bool(self.impassable_tiles[i])
 
+
+@dataclass
+class AISystem:
+    movement_system: MovementSystem
+
+    def simulate(self, game, turns: int):
+        """Simulate AI movement"""
+        for _ in range(turns):
+            self.run(game)
+
+    def run(self, game):
+        for bot, position in game.iter_traits(PatrolBot, Position):
+            if bot.direction == Compass.E:
+                x_previous = position.x
+                self.movement_system.try_right(position)
+                if x_previous == position.x:
+                    bot.direction = Compass.W
+            elif bot.direction == Compass.W:
+                x_previous = position.x
+                self.movement_system.try_left(position)
+                if x_previous == position.x:
+                    bot.direction = Compass.E
+
+
+
+# GAME
 
 @dataclass
 class Game:
@@ -321,6 +356,7 @@ def dungeon_crawler(stdscr):
     height = curses.LINES
     render_system = RenderSystem(stdscr, width=width, height=height)
     movement_system = MovementSystem(width=width, height=height)
+    ai_system = AISystem(movement_system)
 
     game = Game()
 
@@ -329,7 +365,7 @@ def dungeon_crawler(stdscr):
 
     for room in map_system.rooms:
         x, y = room.center
-        game.with_entity() + PatrolBot() + Renderable("B", curses.COLOR_GREEN) + Position(x, y) + Impassable()
+        game.with_entity() + PatrolBot(Compass.E) + Renderable("B", curses.COLOR_GREEN) + Position(x, y)
 
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
@@ -374,6 +410,7 @@ def dungeon_crawler(stdscr):
             elif key == "k":
                 dialog_system.scroll_up()
         else:
+            # Human turn
             if key == "h":
                 movement_system.try_left(player_position)
             elif key == "j":
@@ -382,6 +419,10 @@ def dungeon_crawler(stdscr):
                 movement_system.try_up(player_position)
             elif key == "l":
                 movement_system.try_right(player_position)
+
+            # NPC turn
+            if key in "hjkl":
+                ai_system.run(game)
 
     return
 
@@ -392,6 +433,23 @@ def test_entity():
     game = Game()
     game.with_entity() + Player()
     assert len(list(game.iter_traits(Player))) == 1
+
+
+def test_component_bot_ai_walking():
+    game = Game()
+    bot = game.with_entity() + PatrolBot(Compass.E) + Position(0, 0)
+    movement_system = MovementSystem(width=10, height=10)
+    ai_system = AISystem(movement_system)
+
+    # Walk to edge of board
+    ai_system.simulate(game, turns=10)
+    assert bot.get(Position) == (Position(9, 0),)
+
+    # Walk back
+    ai_system.simulate(game, turns=1)
+    assert bot.get(Position) == (Position(8, 0),)
+    assert bot.get(PatrolBot) == (PatrolBot(Compass.W),)
+
 
 if __name__ == "__main__":
     main()
