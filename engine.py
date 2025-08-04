@@ -1,4 +1,5 @@
 """Dungeon crawler"""
+import random
 from enum import Enum
 from textwrap import TextWrapper
 import argparse
@@ -207,6 +208,22 @@ class AISystem:
                 else:
                     # Keep marching
                     self.movement_system.try_left(position)
+            elif bot.direction == Compass.N:
+                if (position.y - 1) <= bot.room.y:
+                    # Turn around
+                    bot.direction = Compass.S
+                    self.movement_system.try_down(position)
+                else:
+                    # Keep marching
+                    self.movement_system.try_up(position)
+            elif bot.direction == Compass.S:
+                if (position.y + 1) >= (bot.room.y + bot.room.height):
+                    # Turn around
+                    bot.direction = Compass.N
+                    self.movement_system.try_up(position)
+                else:
+                    # Keep marching
+                    self.movement_system.try_down(position)
 
 
 
@@ -372,7 +389,10 @@ def dungeon_crawler(stdscr):
 
     for room in map_system.rooms:
         x, y = room.center
-        game.with_entity() + PatrolBot(Compass.E, room) + Renderable("B", curses.COLOR_GREEN) + Position(x, y)
+        (game.with_entity()
+         + PatrolBot(random.choice(list(Compass)), room)
+         + Renderable("B", curses.COLOR_GREEN)
+         + Position(x, y))
 
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
