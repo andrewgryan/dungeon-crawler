@@ -36,6 +36,26 @@ class Impassable:
     ...
 
 
+@dataclass
+class Room:
+    x: int
+    y: int
+    width: int
+    height: int
+
+    @property
+    def center(self):
+        return self.x + (self.width // 2), self.y + (self.height // 2)
+
+
+@dataclass
+class Corridor:
+    x0: int
+    y0: int
+    x1: int
+    y1: int
+
+
 # NON-PLAYER CHARACTERS
 
 class Compass(Enum):
@@ -48,6 +68,7 @@ class Compass(Enum):
 @dataclass
 class PatrolBot:
     direction: Compass
+    room: Room
 
 
 @dataclass
@@ -171,15 +192,21 @@ class AISystem:
     def run(self, game):
         for bot, position in game.iter_traits(PatrolBot, Position):
             if bot.direction == Compass.E:
-                x_previous = position.x
-                self.movement_system.try_right(position)
-                if x_previous == position.x:
+                if (position.x + 1) >= (bot.room.x + bot.room.width):
+                    # Turn around
                     bot.direction = Compass.W
+                    self.movement_system.try_left(position)
+                else:
+                    # Keep marching
+                    self.movement_system.try_right(position)
             elif bot.direction == Compass.W:
-                x_previous = position.x
-                self.movement_system.try_left(position)
-                if x_previous == position.x:
+                if (position.x - 1) <= bot.room.x:
+                    # Turn around
                     bot.direction = Compass.E
+                    self.movement_system.try_right(position)
+                else:
+                    # Keep marching
+                    self.movement_system.try_left(position)
 
 
 
@@ -198,26 +225,6 @@ class Game:
         for entity in self.entities:
             if entity.has(*traits):
                 yield entity.get(*traits)
-
-
-@dataclass
-class Room:
-    x: int
-    y: int
-    width: int
-    height: int
-
-    @property
-    def center(self):
-        return self.x + (self.width // 2), self.y + (self.height // 2)
-
-
-@dataclass
-class Corridor:
-    x0: int
-    y0: int
-    x1: int
-    y1: int
 
 
 @dataclass
@@ -365,7 +372,7 @@ def dungeon_crawler(stdscr):
 
     for room in map_system.rooms:
         x, y = room.center
-        game.with_entity() + PatrolBot(Compass.E) + Renderable("B", curses.COLOR_GREEN) + Position(x, y)
+        game.with_entity() + PatrolBot(Compass.E, room) + Renderable("B", curses.COLOR_GREEN) + Position(x, y)
 
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
@@ -435,20 +442,21 @@ def test_entity():
     assert len(list(game.iter_traits(Player))) == 1
 
 
-def test_component_bot_ai_walking():
+def test_patrol_bot_ai_walking():
     game = Game()
-    bot = game.with_entity() + PatrolBot(Compass.E) + Position(0, 0)
+    room = Room(0, 0, 5, 5)
+    bot = game.with_entity() + PatrolBot(Compass.E, room) + Position(0, 0)
     movement_system = MovementSystem(width=10, height=10)
     ai_system = AISystem(movement_system)
 
-    # Walk to edge of board
-    ai_system.simulate(game, turns=10)
-    assert bot.get(Position) == (Position(9, 0),)
+    # Walk to edge of room
+    ai_system.simulate(game, turns=4)
+    assert bot.get(Position) == (Position(4, 0),)
 
     # Walk back
     ai_system.simulate(game, turns=1)
-    assert bot.get(Position) == (Position(8, 0),)
-    assert bot.get(PatrolBot) == (PatrolBot(Compass.W),)
+    assert bot.get(Position) == (Position(3, 0),)
+    assert bot.get(PatrolBot) == (PatrolBot(Compass.W, room),)
 
 
 if __name__ == "__main__":
