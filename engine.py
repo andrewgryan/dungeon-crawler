@@ -99,7 +99,23 @@ class Entity:
         self.components = {}
 
 
+# EQUIPMENT
+
+class Item:
+    ...
+
+
 # SYSTEMS
+
+@dataclass
+class InventorySystem:
+    inventory: list[object] = field(default_factory=list)
+
+    def try_pick_up(self, game):
+        # TODO: Think of the ECS way of picking up an item
+        for item, position in game.iter_traits(Item, Position):
+            game.remove_components(position)
+            self.inventory.append(item)
 
 
 class RenderSystem:
@@ -232,6 +248,15 @@ class AISystem:
 @dataclass
 class Game:
     entities: list[Entity] = field(default_factory=list)
+
+    def remove_components(self, *components):
+        for component in components:
+            # Find parent entity [NOTE: different data structure makes this easier]
+            for entity in self.entities:
+                if component.__class__ in entity.components:
+                    if entity.components[component.__class__] == component:
+                        del entity.components[component.__class__]
+
 
     def with_entity(self):
         entity = Entity()
@@ -477,6 +502,19 @@ def test_patrol_bot_ai_walking():
     ai_system.simulate(game, turns=1)
     assert bot.get(Position) == (Position(3, 0),)
     assert bot.get(PatrolBot) == (PatrolBot(Compass.W, room),)
+
+
+def test_pick_up_item():
+    game = Game()
+    item = game.with_entity() + Item() + Position(0, 0) + Renderable("i")
+    player = game.with_entity() + Player() + Position(0, 0) + Renderable("@")
+
+    inventory_system = InventorySystem()
+    assert inventory_system.inventory == []
+
+    inventory_system.try_pick_up(game)
+    assert item.has(Position) == False
+    assert inventory_system.inventory == [item]
 
 
 if __name__ == "__main__":
