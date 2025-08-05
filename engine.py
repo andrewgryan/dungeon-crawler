@@ -94,6 +94,10 @@ class Entity:
         self.components[component.__class__] = component
         return self
 
+    def remove_trait(self, trait):
+        del self.components[trait]
+        return self
+
     def reset(self):
         # Convert to bare entity
         self.components = {}
@@ -101,21 +105,28 @@ class Entity:
 
 # EQUIPMENT
 
+
 class Item:
     ...
+
+
+@dataclass
+class Backpack:
+    items: list[Item] = field(default_factory=list)
 
 
 # SYSTEMS
 
 @dataclass
 class InventorySystem:
-    inventory: list[object] = field(default_factory=list)
-
     def try_pick_up(self, game):
         # TODO: Think of the ECS way of picking up an item
-        for item, position in game.iter_traits(Item, Position):
-            game.remove_components(position)
-            self.inventory.append(item)
+        for player, backpack, player_position in game.iter_traits(Player, Backpack, Position):
+            for item in game.iter_entities(Item, Position):
+                item_position = item.get(Position)[0]
+                if item_position == player_position:
+                    item.remove_trait(Position)
+                    backpack.items.append(item)
 
 
 class RenderSystem:
@@ -249,24 +260,19 @@ class AISystem:
 class Game:
     entities: list[Entity] = field(default_factory=list)
 
-    def remove_components(self, *components):
-        for component in components:
-            # Find parent entity [NOTE: different data structure makes this easier]
-            for entity in self.entities:
-                if component.__class__ in entity.components:
-                    if entity.components[component.__class__] == component:
-                        del entity.components[component.__class__]
-
-
     def with_entity(self):
         entity = Entity()
         self.entities.append(entity)
         return entity
 
-    def iter_traits(self, *traits):
+    def iter_entities(self, *traits):
         for entity in self.entities:
             if entity.has(*traits):
-                yield entity.get(*traits)
+                yield entity
+
+    def iter_traits(self, *traits):
+        for entity in self.iter_entities(*traits):
+            yield entity.get(*traits)
 
 
 @dataclass
@@ -422,8 +428,13 @@ def dungeon_crawler(stdscr):
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
 
+    inventory_system = InventorySystem()
+
+    # Items
+    item = game.with_entity() + Item() + Position(22, 10) + Renderable("i") + Visible()
+
     # Player
-    player = game.with_entity() + Player() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Visible()
+    player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Visible()
     player_position, = player.get(Position)
 
     # Movement
@@ -471,6 +482,8 @@ def dungeon_crawler(stdscr):
                 movement_system.try_up(player_position)
             elif key == "l":
                 movement_system.try_right(player_position)
+            elif key == "p":
+                inventory_system.try_pick_up(game)
 
             # NPC turn
             if key in "hjkl":
@@ -507,14 +520,13 @@ def test_patrol_bot_ai_walking():
 def test_pick_up_item():
     game = Game()
     item = game.with_entity() + Item() + Position(0, 0) + Renderable("i")
-    player = game.with_entity() + Player() + Position(0, 0) + Renderable("@")
+    player = game.with_entity() + Player() + Backpack() + Position(0, 0) + Renderable("@")
 
     inventory_system = InventorySystem()
-    assert inventory_system.inventory == []
 
     inventory_system.try_pick_up(game)
     assert item.has(Position) == False
-    assert inventory_system.inventory == [item]
+    assert player.get(Backpack)[0].items == [item]
 
 
 if __name__ == "__main__":
