@@ -74,7 +74,7 @@ class PatrolBot:
 
 @dataclass
 class Player:
-    ...
+    health: int = 100
 
 
 @dataclass
@@ -330,6 +330,15 @@ class MapSystem:
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
 
 
+class StatusBar:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+
+    def paint(self, game):
+        for pl, in game.iter_traits(Player):
+            self.stdscr.addstr(0, 0, f"health: {pl.health}")
+
+
 class DialogSystem:
     def __init__(self, stdscr, dialog_open=False):
         self.stdscr = stdscr
@@ -427,6 +436,7 @@ def dungeon_crawler(stdscr):
 
     # Narrator, inventory, etc.
     dialog_system = DialogSystem(stdscr)
+    status = StatusBar(stdscr)
 
     inventory_system = InventorySystem()
 
@@ -454,6 +464,7 @@ def dungeon_crawler(stdscr):
                 dialog_system.refresh()
             else:
                 render_system.paint(game)
+            status.paint(game)
             last_paint = current_time
         else:
             # Wait for render to complete
@@ -528,6 +539,20 @@ def test_pick_up_item():
     assert item.has(Position) == False
     assert player.get(Backpack)[0].items == [item]
 
+
+class FakeStdscr:
+    called_with = None
+    def addstr(self, x, y, s):
+        self.called_with = (x, y, s)
+
+
+def test_health_status():
+    game = Game()
+    stdscr = FakeStdscr()
+    status = StatusBar(stdscr)
+    player = game.with_entity() + Player(health=100)
+    status.paint(game)
+    assert stdscr.called_with == (0, 0, "health: 100")
 
 if __name__ == "__main__":
     main()
