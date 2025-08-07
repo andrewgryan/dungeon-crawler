@@ -106,8 +106,23 @@ class Entity:
 # EQUIPMENT
 
 
+@dataclass
 class Item:
-    ...
+    label: str
+    description: str = ""
+
+    @classmethod
+    def electro_mine(cls):
+        return cls(label="Electro-mine",
+                   description="Place in path of bots to fry their circuits. Careful, it can fry nearby circuits too.")
+
+    @classmethod
+    def glove(cls):
+        return cls(label="Glove", description="A single glove")
+
+    @classmethod
+    def torch(cls):
+        return cls(label="Torch", description="Useful in rooms without electric lights")
 
 
 @dataclass
@@ -338,40 +353,61 @@ class StatusBar:
         for pl, in game.iter_traits(Player):
             self.stdscr.addstr(0, 0, f"health: {pl.health}")
 
+class InventoryScreen:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+
+    def paint(self, game):
+        for i, line in enumerate(self.lines(game)):
+            self.stdscr.addstr(i, 0, line)
+
+    def lines(self, game):
+        for _, backpack in game.iter_traits(Player, Backpack):
+            for i, item in enumerate(backpack.items):
+                it, = item.get(Item)
+                yield f"Item {i + 1}: {it.label} [{it.description}]"
+
+
+def help_text(width: int): 
+    text_wrapper = TextWrapper(width=width - 2)
+    paragraphs = [
+        "Greetings, Traveller!",
+        "",
+        "Welcome to Dungeon Crawler! The underground realm is all we have now, since the overworld fell."
+        "",
+        "",
+        "Exploration is the name of the game. Survive by your wits. Accumulate technology to help you on your way."
+        "",
+        "",
+        "And most importantly, trust no one."
+        "",
+        "",
+        "press '?' to toggle dialog",
+        "use 'j' and 'k' to scroll dialog",
+    ]
+    wrapped = [text_wrapper.fill(p) for p in paragraphs]
+    lines = []
+    for p in wrapped:
+        lines += p.split("\n")
+    return lines
+
 
 class DialogSystem:
     def __init__(self, stdscr, dialog_open=False):
         self.stdscr = stdscr
         self.width = 40
-        self.text_wrapper = TextWrapper(width=self.width - 2)
         self.window = curses.newwin(curses.LINES, self.width, 0, curses.COLS - self.width)
         self.dialog_open = dialog_open
         self.scroll_index = 0
 
         # Content
-        paragraphs = [
-            "Greetings, Traveller!",
-            "",
-            "Welcome to Dungeon Crawler! The underground realm is all we have now, since the overworld fell."
-            "",
-            "",
-            "Exploration is the name of the game. Survive by your wits. Accumulate technology to help you on your way."
-            "",
-            "",
-            "And most importantly, trust no one."
-            "",
-            "",
-            "press '?' to toggle dialog",
-            "use 'j' and 'k' to scroll dialog",
-        ]
-        wrapped = [self.text_wrapper.fill(p) for p in paragraphs]
-        lines = []
-        for p in wrapped:
-            lines += p.split("\n")
-        self.displayed_lines = lines
+        self.displayed_lines = []
 
     def toggle(self):
         self.dialog_open = not self.dialog_open
+
+    def set_lines(self, lines: list[str]):
+        self.displayed_lines = lines
 
     def paint(self):
         self.window.erase()
@@ -439,9 +475,14 @@ def dungeon_crawler(stdscr):
     status = StatusBar(stdscr)
 
     inventory_system = InventorySystem()
+    inventory_screen = InventoryScreen(stdscr)
 
     # Items
-    item = game.with_entity() + Item() + Position(22, 10) + Renderable("i") + Visible()
+    item = (game.with_entity() +
+            Item.electro_mine() +
+            Position(22, 10) +
+            Renderable("o") +
+            Visible())
 
     # Player
     player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Visible()
@@ -465,6 +506,7 @@ def dungeon_crawler(stdscr):
             else:
                 render_system.paint(game)
             status.paint(game)
+            inventory_screen.paint(game)
             last_paint = current_time
         else:
             # Wait for render to complete
@@ -476,6 +518,11 @@ def dungeon_crawler(stdscr):
         if key == "q":
             return
         elif key == "?":
+            dialog_system.set_lines(help_text(dialog_system.width))
+            dialog_system.toggle()
+        elif key == "i":
+            lines = list(inventory_screen.lines(game))
+            dialog_system.set_lines(lines)
             dialog_system.toggle()
 
         if dialog_system.dialog_open:
@@ -530,7 +577,7 @@ def test_patrol_bot_ai_walking():
 
 def test_pick_up_item():
     game = Game()
-    item = game.with_entity() + Item() + Position(0, 0) + Renderable("i")
+    item = game.with_entity() + Item.glove() + Position(0, 0) + Renderable("i")
     player = game.with_entity() + Player() + Backpack() + Position(0, 0) + Renderable("@")
 
     inventory_system = InventorySystem()
@@ -553,6 +600,17 @@ def test_health_status():
     player = game.with_entity() + Player(health=100)
     status.paint(game)
     assert stdscr.called_with == (0, 0, "health: 100")
+
+
+def test_show_inventory():
+    game = Game()
+    stdscr = FakeStdscr()
+    torch = game.with_entity() + Item.torch()
+    player = game.with_entity() + Player() + Backpack(items=[torch])
+    inventory = InventoryScreen(stdscr)
+    inventory.paint(game)
+    assert stdscr.called_with == (0, 0, "Item 1: Torch [Useful in rooms without electric lights]")
+
 
 if __name__ == "__main__":
     main()
