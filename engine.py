@@ -364,6 +364,7 @@ class InventoryScreen:
                 it, = item.get(Item)
                 yield f"- {it.label}"
                 yield from textwrap.wrap(it.description, width=35)
+                yield ""
 
 
 def help_text(width: int): 
@@ -479,6 +480,16 @@ def dungeon_crawler(stdscr):
     item = (game.with_entity() +
             Item.electro_mine() +
             Position(22, 10) +
+            Renderable("o") +
+            Visible())
+    glove = (game.with_entity() +
+            Item.glove() +
+            Position(24, 10) +
+            Renderable("o") +
+            Visible())
+    torch = (game.with_entity() +
+            Item.torch() +
+            Position(7, 10) +
             Renderable("o") +
             Visible())
 
