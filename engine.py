@@ -1,4 +1,5 @@
 """Dungeon crawler"""
+import textwrap
 import random
 from enum import Enum
 from textwrap import TextWrapper
@@ -357,15 +358,12 @@ class InventoryScreen:
     def __init__(self, stdscr):
         self.stdscr = stdscr
 
-    def paint(self, game):
-        for i, line in enumerate(self.lines(game)):
-            self.stdscr.addstr(i, 0, line)
-
     def lines(self, game):
         for _, backpack in game.iter_traits(Player, Backpack):
             for i, item in enumerate(backpack.items):
                 it, = item.get(Item)
-                yield f"Item {i + 1}: {it.label} [{it.description}]"
+                yield f"- {it.label}"
+                yield from textwrap.wrap(it.description, width=35)
 
 
 def help_text(width: int): 
@@ -506,7 +504,6 @@ def dungeon_crawler(stdscr):
             else:
                 render_system.paint(game)
             status.paint(game)
-            inventory_screen.paint(game)
             last_paint = current_time
         else:
             # Wait for render to complete
