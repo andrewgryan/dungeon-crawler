@@ -167,7 +167,7 @@ class RenderSystem:
 
     def paint(self, game):
         self.erase()
-        for position, renderable in game.iter_traits(Position, Renderable):
+        for position, renderable, _ in game.iter_traits(Position, Renderable, Visible):
             self.render(position.x, position.y, renderable.char, renderable.color)
         self.refresh()
 
@@ -278,6 +278,15 @@ class AISystem:
                     self.movement_system.try_down(position)
 
 
+class VisionSystem:
+    def run(self, game):
+        for _, position in game.iter_traits(Player, Position):
+            x, y = position.x, position.y
+            for i in [-2, -1, 0, 1, 2]:
+                for j in [-2, -1, 0, 1, 2]:
+                    for entity in game.iter_by_component(Position(x + i, y + j)):
+                        entity += Visible()
+
 
 # GAME
 
@@ -298,6 +307,11 @@ class Game:
     def iter_traits(self, *traits):
         for entity in self.iter_entities(*traits):
             yield entity.get(*traits)
+
+    def iter_by_component(self, component):
+        for entity in self.entities:
+            if entity.components[component.__class__] == component:
+                yield entity
 
 
 @dataclass
@@ -471,6 +485,7 @@ def dungeon_crawler(stdscr):
     status = StatusBar(stdscr)
 
     inventory_system = InventorySystem()
+    vision_system = VisionSystem()
 
     # Items
     item = (game.with_entity() +
@@ -509,6 +524,7 @@ def dungeon_crawler(stdscr):
                 dialog_system.paint()
                 dialog_system.refresh()
             else:
+                vision_system.run(game)
                 render_system.paint(game)
             status.paint(game)
             last_paint = current_time
