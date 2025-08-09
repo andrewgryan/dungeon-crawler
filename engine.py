@@ -446,7 +446,7 @@ class DialogSystem:
                 self.window.addstr(i + 1, x0 + 2, line)
 
     def scroll_up(self):
-        if self.scroll_index - 1 > 0:
+        if self.scroll_index - 1 >= 0:
             self.scroll_index -= 1
 
     def scroll_down(self):
