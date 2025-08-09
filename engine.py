@@ -144,6 +144,15 @@ class InventorySystem:
                     item.remove_trait(Position)
                     backpack.items.append(item)
 
+    @staticmethod
+    def lines(game):
+        for _, backpack in game.iter_traits(Player, Backpack):
+            for i, item in enumerate(backpack.items):
+                it, = item.get(Item)
+                yield f"- {it.label}"
+                yield from textwrap.wrap(it.description, width=35)
+                yield ""
+
 
 class RenderSystem:
     def __init__(self, stdscr, width: int, height: int):
@@ -354,18 +363,6 @@ class StatusBar:
         for pl, in game.iter_traits(Player):
             self.stdscr.addstr(0, 0, f"health: {pl.health}")
 
-class InventoryScreen:
-    def __init__(self, stdscr):
-        self.stdscr = stdscr
-
-    def lines(self, game):
-        for _, backpack in game.iter_traits(Player, Backpack):
-            for i, item in enumerate(backpack.items):
-                it, = item.get(Item)
-                yield f"- {it.label}"
-                yield from textwrap.wrap(it.description, width=35)
-                yield ""
-
 
 def help_text(width: int): 
     text_wrapper = TextWrapper(width=width - 2)
@@ -474,7 +471,6 @@ def dungeon_crawler(stdscr):
     status = StatusBar(stdscr)
 
     inventory_system = InventorySystem()
-    inventory_screen = InventoryScreen(stdscr)
 
     # Items
     item = (game.with_entity() +
@@ -529,7 +525,7 @@ def dungeon_crawler(stdscr):
             dialog_system.set_lines(help_text(dialog_system.width))
             dialog_system.toggle()
         elif key == "i":
-            lines = list(inventory_screen.lines(game))
+            lines = list(inventory_system.lines(game))
             dialog_system.set_lines(lines)
             dialog_system.toggle()
 
@@ -612,12 +608,10 @@ def test_health_status():
 
 def test_show_inventory():
     game = Game()
-    stdscr = FakeStdscr()
     torch = game.with_entity() + Item.torch()
     player = game.with_entity() + Player() + Backpack(items=[torch])
-    inventory = InventoryScreen(stdscr)
-    inventory.paint(game)
-    assert stdscr.called_with == (0, 0, "Item 1: Torch [Useful in rooms without electric lights]")
+    inventory = InventorySystem()
+    assert list(inventory.lines(game)) == ["- Torch", "Useful in rooms without electric", "lights", ""]
 
 
 if __name__ == "__main__":
