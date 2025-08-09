@@ -204,29 +204,41 @@ class MovementSystem:
         x, y = position.x, position.y
         if y - 1 >= 0:
             y -= 1
+        moved = False
         if self.passable(x, y):
             position.x, position.y = x, y
+            moved = True
+        return moved
 
     def try_down(self, position):
         x, y = position.x, position.y
         if y + 1 < self.height:
             y += 1
+        moved = False
         if self.passable(x, y):
             position.x, position.y = x, y
+            moved = True
+        return moved
 
-    def try_left(self, position):
+    def try_left(self, position) -> bool:
         x, y = position.x, position.y
         if x - 1 >= 0:
             x -= 1
+        moved = False
         if self.passable(x, y):
             position.x, position.y = x, y
+            moved = True
+        return moved
 
     def try_right(self, position):
         x, y = position.x, position.y
         if x + 1 < self.width:
             x += 1
+        moved = False
         if self.passable(x, y):
             position.x, position.y = x, y
+            moved = True
+        return moved
 
     def passable(self, x: int, y: int) -> bool:
         i = x + self.width * y
@@ -309,7 +321,7 @@ class Game:
             yield entity.get(*traits)
 
     def iter_by_component(self, component):
-        for entity in self.entities:
+        for entity in self.iter_entities(component.__class__):
             if entity.components[component.__class__] == component:
                 yield entity
 
@@ -553,13 +565,21 @@ def dungeon_crawler(stdscr):
         else:
             # Human turn
             if key == "h":
-                movement_system.try_left(player_position)
+                moved = movement_system.try_left(player_position)
+                if not moved:
+                    continue
             elif key == "j":
-                movement_system.try_down(player_position)
+                moved = movement_system.try_down(player_position)
+                if not moved:
+                    continue
             elif key == "k":
-                movement_system.try_up(player_position)
+                moved = movement_system.try_up(player_position)
+                if not moved:
+                    continue
             elif key == "l":
-                movement_system.try_right(player_position)
+                moved = movement_system.try_right(player_position)
+                if not moved:
+                    continue
             elif key == "p":
                 inventory_system.try_pick_up(game)
 
