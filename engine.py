@@ -25,10 +25,13 @@ class Renderable:
     char: str = "@"
     color: int = curses.COLOR_BLUE
 
+# VISION
 
 @dataclass
-class Visible:
-    ...
+class Viewable:
+    opaque: bool = False
+    visible: bool = False
+
 
 
 # TERRAIN
@@ -167,8 +170,9 @@ class RenderSystem:
 
     def paint(self, game):
         self.erase()
-        for position, renderable, _ in game.iter_traits(Position, Renderable, Visible):
-            self.render(position.x, position.y, renderable.char, renderable.color)
+        for position, renderable, viewable in game.iter_traits(Position, Renderable, Viewable):
+            if viewable.visible:
+                self.render(position.x, position.y, renderable.char, renderable.color)
         self.refresh()
 
     def erase(self):
@@ -292,12 +296,11 @@ class AISystem:
 
 class VisionSystem:
     def run(self, game):
-        for _, position in game.iter_traits(Player, Position):
-            x, y = position.x, position.y
-            for i in [-2, -1, 0, 1, 2]:
-                for j in [-2, -1, 0, 1, 2]:
-                    for entity in game.iter_by_component(Position(x + i, y + j)):
-                        entity += Visible()
+        for _, player_position, _ in game.iter_traits(Player, Position, Viewable):
+            player_x, player_y = player_position.x, player_position.y
+            for position, viewable in game.iter_traits(Position, Viewable):
+                if (abs(position.x - player_x) <= 2) and (abs(position.y - player_y) <= 2):
+                    viewable.visible = True
 
 
 # GAME
@@ -375,7 +378,7 @@ class MapSystem:
         for x in range(0, self.screen_width):
             for y in range(0, self.screen_height):
                 if atlas[x + self.screen_width * y]:
-                    game.with_entity() + Position(x, y) + Renderable("#") + Impassable()
+                    game.with_entity() + Position(x, y) + Renderable("#") + Impassable() + Viewable(opaque=True)
 
     def is_wall(self, game, x, y):
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
@@ -490,6 +493,7 @@ def dungeon_crawler(stdscr):
         (game.with_entity()
          + PatrolBot(random.choice(list(Compass)), room)
          + Renderable("B", curses.COLOR_GREEN)
+         + Viewable()
          + Position(x, y))
 
     # Narrator, inventory, etc.
@@ -504,20 +508,20 @@ def dungeon_crawler(stdscr):
             Item.electro_mine() +
             Position(22, 10) +
             Renderable("o") +
-            Visible())
+            Viewable())
     glove = (game.with_entity() +
             Item.glove() +
             Position(24, 10) +
             Renderable("o") +
-            Visible())
+            Viewable())
     torch = (game.with_entity() +
             Item.torch() +
             Position(7, 10) +
             Renderable("o") +
-            Visible())
+            Viewable())
 
     # Player
-    player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Visible()
+    player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Viewable()
     player_position, = player.get(Position)
 
     # Movement
@@ -648,6 +652,18 @@ def test_show_inventory():
     player = game.with_entity() + Player() + Backpack(items=[torch])
     inventory = InventorySystem()
     assert list(inventory.lines(game)) == ["- Torch", "Useful in rooms without electric", "lights", ""]
+
+
+def test_vision_system():
+    game = Game()
+    player = game.with_entity() + Player() + Position(0, 0) + Viewable()
+    for i in range(5):
+        game.with_entity() + Position(i, 0) + Viewable()
+    game.with_entity() + Viewable(opaque=True) + Position(1, 0)
+    vision_system = VisionSystem()
+    vision_system.run(game)
+    actual = [position.x for viewable, position in game.iter_traits(Viewable, Position) if viewable.visible]
+    assert actual == [0, 0, 1, 1]
 
 
 if __name__ == "__main__":
