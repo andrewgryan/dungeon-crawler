@@ -31,6 +31,7 @@ class Renderable:
 class Viewable:
     opaque: bool = False
     visible: bool = False
+    terrain: bool = False
 
 
 
@@ -301,6 +302,9 @@ class VisionSystem:
             for position, viewable in game.iter_traits(Position, Viewable):
                 if (abs(position.x - player_x) <= 2) and (abs(position.y - player_y) <= 2):
                     viewable.visible = True
+                else:
+                    if not viewable.terrain:
+                        viewable.visible = False
 
 
 # GAME
@@ -378,7 +382,7 @@ class MapSystem:
         for x in range(0, self.screen_width):
             for y in range(0, self.screen_height):
                 if atlas[x + self.screen_width * y]:
-                    game.with_entity() + Position(x, y) + Renderable("#") + Impassable() + Viewable(opaque=True)
+                    game.with_entity() + Position(x, y) + Renderable("#") + Impassable() + Viewable(opaque=True, terrain=True)
 
     def is_wall(self, game, x, y):
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
