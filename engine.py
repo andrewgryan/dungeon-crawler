@@ -27,10 +27,15 @@ class Renderable:
 
 # VISION
 
+class Luminosity(Enum):
+    BRIGHT = 1
+    DIM = 2
+    HIDDEN = 3
+
 @dataclass
 class Viewable:
     opaque: bool = False
-    visible: bool = False
+    luminosity: Luminosity = Luminosity.HIDDEN
     terrain: bool = False
 
 
@@ -172,20 +177,25 @@ class RenderSystem:
     def paint(self, game):
         self.erase()
         for position, renderable, viewable in game.iter_traits(Position, Renderable, Viewable):
-            if viewable.visible:
-                self.render(position.x, position.y, renderable.char, renderable.color)
+            if viewable.luminosity == Luminosity.BRIGHT:
+                self.render_color(position.x, position.y, renderable.char, renderable.color)
+            elif viewable.luminosity == Luminosity.DIM:
+                self.render_dim(position.x, position.y, renderable.char)
         self.refresh()
 
     def erase(self):
         self.window.erase()
 
-    def render(self, x, y, c, color):
+    def render_color(self, x, y, c, color):
         if color not in self._numbers:
             self._numbers[color] = self._number
             self._number += 1
         number = self._numbers[color]
         curses.init_pair(number, color, curses.COLOR_BLACK)
         self.window.addch(y, x, c, curses.color_pair(number))
+
+    def render_dim(self, x, y, c):
+        self.window.addch(y, x, c, curses.A_DIM)
 
     def refresh(self):
         self.window.refresh()
@@ -297,14 +307,18 @@ class AISystem:
 
 class VisionSystem:
     def run(self, game):
-        for _, player_position, _ in game.iter_traits(Player, Position, Viewable):
+        viewshed_range = 5
+        for _, player_position, viewable in game.iter_traits(Player, Position, Viewable):
+            viewable.luminosity = Luminosity.BRIGHT
             player_x, player_y = player_position.x, player_position.y
             for position, viewable in game.iter_traits(Position, Viewable):
-                if (abs(position.x - player_x) <= 2) and (abs(position.y - player_y) <= 2):
-                    viewable.visible = True
+                if (abs(position.x - player_x) <= viewshed_range) and (abs(position.y - player_y) <= viewshed_range):
+                    viewable.luminosity = Luminosity.BRIGHT
                 else:
                     if not viewable.terrain:
-                        viewable.visible = False
+                        viewable.luminosity = Luminosity.HIDDEN
+                    elif viewable.luminosity == Luminosity.BRIGHT:
+                        viewable.luminosity = Luminosity.DIM
 
 
 # GAME
