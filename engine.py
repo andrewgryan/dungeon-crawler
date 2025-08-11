@@ -397,6 +397,11 @@ class MapSystem:
             for y in range(0, self.screen_height):
                 if atlas[x + self.screen_width * y]:
                     game.with_entity() + Position(x, y) + Renderable("#") + Impassable() + Viewable(opaque=True, terrain=True)
+                else:
+                    (game.with_entity() +
+                            Position(x, y) +
+                            Renderable(".", curses.COLOR_GREEN) +
+                            Viewable(terrain=True))
 
     def is_wall(self, game, x, y):
         return any((position.x, position.y) == (x, y) for position, _, _ in game.iter_traits(Position, Impassable, Renderable))
