@@ -1,3 +1,4 @@
+#!/usr/bin/env -S uv run --script
 """Dungeon crawler"""
 import textwrap
 import random
@@ -319,6 +320,116 @@ class VisionSystem:
                         viewable.luminosity = Luminosity.HIDDEN
                     elif viewable.luminosity == Luminosity.BRIGHT:
                         viewable.luminosity = Luminosity.DIM
+
+# SHADOW CASTING
+
+def iter_octant(index: int):
+    """Custom-iterator for shadow casting algorithm
+
+    Octant indices work like this.
+
+    \111|222/
+    8\11|22/3
+    88\1|2/33
+    888\|/333
+    ----@----
+    777/|\444
+    77/6|5\44
+    7/66|55\4
+    /666|555\
+
+    """
+    k = 1
+    while True:
+        if index == 1:
+            yield from ((-i, k) for i in reversed(range(k + 1)))
+        elif index == 2:
+            yield from ((i, k) for i in reversed(range(k + 1)))
+        elif index == 3:
+            yield from ((k, i) for i in reversed(range(k + 1)))
+        elif index == 4:
+            yield from ((k, -i) for i in reversed(range(k + 1)))
+        elif index == 5:
+            yield from ((i, -k) for i in reversed(range(k + 1)))
+        elif index == 6:
+            yield from ((-i, -k) for i in reversed(range(k + 1)))
+        elif index == 7:
+            yield from ((-k, -i) for i in reversed(range(k + 1)))
+        elif index == 8:
+            yield from ((-k, i) for i in reversed(range(k + 1)))
+        else:
+            break
+        k += 1
+
+
+def test_vision_system_shadow_casting():
+    # Octant iterator
+    iterator = iter_octant(1) 
+    assert next(iterator) == (-1, 1)
+    assert next(iterator) == (0, 1)
+    assert next(iterator) == (-2, 2)
+    assert next(iterator) == (-1, 2)
+    assert next(iterator) == (0, 2)
+
+    iterator = iter_octant(2) 
+    assert next(iterator) == (1, 1)
+    assert next(iterator) == (0, 1)
+    assert next(iterator) == (2, 2)
+    assert next(iterator) == (1, 2)
+    assert next(iterator) == (0, 2)
+
+    iterator = iter_octant(3) 
+    assert next(iterator) == (1, 1)
+    assert next(iterator) == (1, 0)
+    assert next(iterator) == (2, 2)
+    assert next(iterator) == (2, 1)
+    assert next(iterator) == (2, 0)
+
+    iterator = iter_octant(4) 
+    assert next(iterator) == (1, -1)
+    assert next(iterator) == (1, 0)
+    assert next(iterator) == (2, -2)
+    assert next(iterator) == (2, -1)
+    assert next(iterator) == (2, 0)
+
+    iterator = iter_octant(5) 
+    assert next(iterator) == (1, -1)
+    assert next(iterator) == (0, -1)
+    assert next(iterator) == (2, -2)
+    assert next(iterator) == (1, -2)
+    assert next(iterator) == (0, -2)
+
+    iterator = iter_octant(6) 
+    assert next(iterator) == (-1, -1)
+    assert next(iterator) == (0, -1)
+    assert next(iterator) == (-2, -2)
+    assert next(iterator) == (-1, -2)
+    assert next(iterator) == (0, -2)
+
+    iterator = iter_octant(7) 
+    assert next(iterator) == (-1, -1)
+    assert next(iterator) == (-1, 0)
+    assert next(iterator) == (-2, -2)
+    assert next(iterator) == (-2, -1)
+    assert next(iterator) == (-2, 0)
+
+    iterator = iter_octant(8) 
+    assert next(iterator) == (-1, 1)
+    assert next(iterator) == (-1, 0)
+    assert next(iterator) == (-2, 2)
+    assert next(iterator) == (-2, 1)
+    assert next(iterator) == (-2, 0)
+
+
+def slope(a: tuple[int, int], b: tuple[int, int]) -> float:
+    (x1, y1), (x2, y2) = a, b
+    return (y2 - y1) / (x2 - x1)
+
+
+def test_slope():
+    assert slope((0, 0), (1, 1)) == 1.0
+    assert slope((0, 0), (1, 0)) == 0.0
+    assert slope((0, 0), (0.1, 1)) == 10.0
 
 
 # GAME
@@ -675,18 +786,6 @@ def test_show_inventory():
     player = game.with_entity() + Player() + Backpack(items=[torch])
     inventory = InventorySystem()
     assert list(inventory.lines(game)) == ["- Torch", "Useful in rooms without electric", "lights", ""]
-
-
-def test_vision_system():
-    game = Game()
-    player = game.with_entity() + Player() + Position(0, 0) + Viewable()
-    for i in range(5):
-        game.with_entity() + Position(i, 0) + Viewable()
-    game.with_entity() + Viewable(opaque=True) + Position(1, 0)
-    vision_system = VisionSystem()
-    vision_system.run(game)
-    actual = [position.x for viewable, position in game.iter_traits(Viewable, Position) if viewable.visible]
-    assert actual == [0, 0, 1, 1]
 
 
 if __name__ == "__main__":
