@@ -323,6 +323,37 @@ class VisionSystem:
 
 # SHADOW CASTING
 
+class Viewables:
+    """Simulate a sparse array interface to Viewable entities with Position"""
+    def __init__(self, kvs: dict[tuple[int, int], list[Viewable]], default_factory = list):
+        self.kvs = kvs
+        self.default_factory = default_factory
+
+    def __getitem__(self, key):
+        return self.kvs.get(key, self.default_factory())
+
+    @classmethod
+    def from_game(cls, game):
+        vs: dict[tuple[int, int], list[Viewable]] = {}
+        for position, viewable in game.iter_traits(Position, Viewable):
+            key = (position.x, position.y)
+            try:
+                vs[key].append(viewable)
+            except KeyError:
+                vs[key] = [viewable]
+        return cls(vs)
+
+
+def test_viewables_lookup_table():
+    game = Game()
+    traits = [Viewable(terrain=True), Viewable()]
+    for viewable in traits:
+        entity = game.with_entity() + Position(1, 0) + viewable
+    actual = Viewables.from_game(game)
+    assert actual[1, 0] == traits
+    assert actual[0, 0] == []
+
+
 def iter_octant(index: int):
     """Custom-iterator for shadow casting algorithm
 
