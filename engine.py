@@ -329,29 +329,6 @@ class VisionSystem:
         # Reset seen viewables
         self.seen = []
 
-        def out_of_bounds(x: int, y: int) -> bool:
-            return (x < 0) | (y < 0) | (x >= curses.COLS) | (y >= curses.LINES)
-
-        def scan(index: int, x: int, y: int, viewables):
-            seen = []
-            wall_seen = False
-            for i, j in iter_octant(index):
-                if out_of_bounds(x + i, y + j):
-                    break
-                for viewable in viewables[x + i, y + j]:
-                    viewable.luminosity = Luminosity.BRIGHT
-                    seen.append(viewable)
-
-                wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-                wall_seen = wall_seen | wall
-                if index in (1, 2, 5, 6):
-                    if i == 0 and wall_seen:
-                        break
-                elif index in (3, 4, 7, 8):
-                    if j == 0 and wall_seen:
-                        break
-            return seen
-
         # OCTANT 1-8
         self.seen += scan(1, x, y, viewables)
         self.seen += scan(2, x, y, viewables)
@@ -362,6 +339,8 @@ class VisionSystem:
         self.seen += scan(7, x, y, viewables)
         self.seen += scan(8, x, y, viewables)
 
+        for viewable in self.seen: 
+            viewable.luminosity = Luminosity.BRIGHT
 
     def run_square_viewshed(self, game, viewshed_range=5):
         for _, player_position, viewable in game.iter_traits(Player, Position, Viewable):
@@ -377,7 +356,6 @@ class VisionSystem:
                         viewable.luminosity = Luminosity.DIM
 
 # SHADOW CASTING
-
 class Viewables:
     """Simulate a sparse array interface to Viewable entities with Position"""
     def __init__(self, kvs: dict[tuple[int, int], list[Viewable]], default_factory = list):
@@ -398,6 +376,31 @@ class Viewables:
                 vs[key] = [viewable]
         return cls(vs)
 
+
+def out_of_bounds(x: int, y: int) -> bool:
+    return (x < 0) | (y < 0) | (x >= curses.COLS) | (y >= curses.LINES)
+
+
+def scan(index: int, x: int, y: int, viewables: Viewables) -> list[Viewable]:
+    seen = []
+    wall_seen = False
+    for i, j in iter_octant(index):
+        if out_of_bounds(x + i, y + j):
+            break
+
+        for viewable in viewables[x + i, y + j]:
+            seen.append(viewable)
+
+        # TODO: Recursive scan when wall/opening encountered
+        wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+        wall_seen = wall_seen | wall
+        if index in (1, 2, 5, 6):
+            if i == 0 and wall_seen:
+                break
+        elif index in (3, 4, 7, 8):
+            if j == 0 and wall_seen:
+                break
+    return seen
 
 def test_viewables_lookup_table():
     game = Game()
@@ -755,7 +758,7 @@ def dungeon_crawler(stdscr):
     movement_system.cache_impassable(game)
     render_system.paint(game)
     last_paint = datetime.now()
-    refresh_rate = timedelta(microseconds=16.7 * 1000)
+    refresh_rate = timedelta(microseconds=(1000 * 1000) // 60)
     while True:
 
         # Throttle render system
