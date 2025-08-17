@@ -308,7 +308,126 @@ class AISystem:
 
 class VisionSystem:
     def run(self, game):
-        viewshed_range = 5
+        self.run_shadow_casting(game)
+
+    def run_shadow_casting(self, game):
+        x, y = None, None
+        for position, _, _ in game.iter_traits(Position, Player, Viewable):
+            x, y = position.x, position.y
+            break
+
+        viewables = Viewables.from_game(game)
+
+        # OCTANT 1
+        wall_seen = False
+        for i, j in iter_octant(1):
+            if j >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if i == 0 and wall_seen:
+                break
+
+        # OCTANT 2
+        wall_seen = False
+        for i, j in iter_octant(2):
+            if j >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if i == 0 and wall_seen:
+                break
+
+        # OCTANT 3
+        wall_seen = False
+        for i, j in iter_octant(3):
+            if j >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if j == 0 and wall_seen:
+                break
+
+        # OCTANT 4
+        wall_seen = False
+        for i, j in iter_octant(4):
+            if abs(j) >= 50 or abs(i) >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+
+            wall_seen = wall_seen | wall
+            if j == 0 and wall_seen:
+                break
+
+        # OCTANT 5
+        wall_seen = False
+        for i, j in iter_octant(5):
+            if abs(j) >= 50 or abs(i) >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if i == 0 and wall_seen:
+                break
+
+        # OCTANT 6
+        wall_seen = False
+        for i, j in iter_octant(6):
+
+            if abs(j) >= 50 or abs(i) >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if i == 0 and wall_seen:
+                break
+
+        # OCTANT 7
+        wall_seen = False
+        for i, j in iter_octant(7):
+
+            if abs(j) >= 50 or abs(i) >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if j == 0 and wall_seen:
+                break
+
+        # OCTANT 8
+        wall_seen = False
+        for i, j in iter_octant(8):
+
+            if abs(j) >= 50 or abs(i) >= 50:
+                break
+            for viewable in viewables[x + i, y + j]:
+                viewable.luminosity = Luminosity.DIM
+
+            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+            wall_seen = wall_seen | wall
+            if j == 0 and wall_seen:
+                break
+
+
+    def run_square_viewshed(self, game, viewshed_range=5):
         for _, player_position, viewable in game.iter_traits(Player, Position, Viewable):
             viewable.luminosity = Luminosity.BRIGHT
             player_x, player_y = player_position.x, player_position.y
@@ -355,7 +474,7 @@ def test_viewables_lookup_table():
 
 
 def iter_octant(index: int):
-    """Custom-iterator for shadow casting algorithm
+    r"""Custom-iterator for shadow casting algorithm
 
     Octant indices work like this.
 
@@ -395,56 +514,56 @@ def iter_octant(index: int):
 
 def test_vision_system_shadow_casting():
     # Octant iterator
-    iterator = iter_octant(1) 
+    iterator = iter_octant(1)
     assert next(iterator) == (-1, 1)
     assert next(iterator) == (0, 1)
     assert next(iterator) == (-2, 2)
     assert next(iterator) == (-1, 2)
     assert next(iterator) == (0, 2)
 
-    iterator = iter_octant(2) 
+    iterator = iter_octant(2)
     assert next(iterator) == (1, 1)
     assert next(iterator) == (0, 1)
     assert next(iterator) == (2, 2)
     assert next(iterator) == (1, 2)
     assert next(iterator) == (0, 2)
 
-    iterator = iter_octant(3) 
+    iterator = iter_octant(3)
     assert next(iterator) == (1, 1)
     assert next(iterator) == (1, 0)
     assert next(iterator) == (2, 2)
     assert next(iterator) == (2, 1)
     assert next(iterator) == (2, 0)
 
-    iterator = iter_octant(4) 
+    iterator = iter_octant(4)
     assert next(iterator) == (1, -1)
     assert next(iterator) == (1, 0)
     assert next(iterator) == (2, -2)
     assert next(iterator) == (2, -1)
     assert next(iterator) == (2, 0)
 
-    iterator = iter_octant(5) 
+    iterator = iter_octant(5)
     assert next(iterator) == (1, -1)
     assert next(iterator) == (0, -1)
     assert next(iterator) == (2, -2)
     assert next(iterator) == (1, -2)
     assert next(iterator) == (0, -2)
 
-    iterator = iter_octant(6) 
+    iterator = iter_octant(6)
     assert next(iterator) == (-1, -1)
     assert next(iterator) == (0, -1)
     assert next(iterator) == (-2, -2)
     assert next(iterator) == (-1, -2)
     assert next(iterator) == (0, -2)
 
-    iterator = iter_octant(7) 
+    iterator = iter_octant(7)
     assert next(iterator) == (-1, -1)
     assert next(iterator) == (-1, 0)
     assert next(iterator) == (-2, -2)
     assert next(iterator) == (-2, -1)
     assert next(iterator) == (-2, 0)
 
-    iterator = iter_octant(8) 
+    iterator = iter_octant(8)
     assert next(iterator) == (-1, 1)
     assert next(iterator) == (-1, 0)
     assert next(iterator) == (-2, 2)
@@ -558,7 +677,7 @@ class StatusBar:
             self.stdscr.addstr(0, 0, f"health: {pl.health}")
 
 
-def help_text(width: int): 
+def help_text(width: int):
     text_wrapper = TextWrapper(width=width - 2)
     paragraphs = [
         "Greetings, Traveller!",
@@ -686,7 +805,14 @@ def dungeon_crawler(stdscr):
             Viewable())
 
     # Player
-    player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Viewable()
+    player = (
+        game.with_entity() +
+        Player() +
+        Backpack() +
+        Position(20, 10) +
+        Renderable("@", curses.COLOR_YELLOW) +
+        Viewable(luminosity=Luminosity.BRIGHT)
+    )
     player_position, = player.get(Position)
 
     # Movement
