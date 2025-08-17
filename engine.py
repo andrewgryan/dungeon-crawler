@@ -329,11 +329,14 @@ class VisionSystem:
         # Reset seen viewables
         self.seen = []
 
+        def out_of_bounds(x: int, y: int) -> bool:
+            return (x < 0) | (y < 0) | (x >= curses.COLS) | (y >= curses.LINES)
+
         def scan(index: int, x: int, y: int, viewables):
             seen = []
             wall_seen = False
             for i, j in iter_octant(index):
-                if abs(j) >= 50 or abs(i) >= 50:
+                if out_of_bounds(x + i, y + j):
                     break
                 for viewable in viewables[x + i, y + j]:
                     viewable.luminosity = Luminosity.BRIGHT
