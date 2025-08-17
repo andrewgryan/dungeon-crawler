@@ -321,126 +321,43 @@ class VisionSystem:
 
         viewables = Viewables.from_game(game)
 
-        # Dim bright viewables
+        # Dim previously bright viewables
         for viewable in self.seen:
             if viewable.luminosity == Luminosity.BRIGHT:
                 viewable.luminosity = Luminosity.DIM if viewable.terrain else Luminosity.HIDDEN
 
-        # OCTANT 1
-        wall_seen = False
-        for i, j in iter_octant(1):
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
+        # Reset seen viewables
+        self.seen = []
 
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if i == 0 and wall_seen:
-                break
+        def scan(index: int, x: int, y: int, viewables):
+            seen = []
+            wall_seen = False
+            for i, j in iter_octant(index):
+                if abs(j) >= 50 or abs(i) >= 50:
+                    break
+                for viewable in viewables[x + i, y + j]:
+                    viewable.luminosity = Luminosity.BRIGHT
+                    seen.append(viewable)
 
-        # OCTANT 2
-        wall_seen = False
-        for i, j in iter_octant(2):
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
+                wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+                wall_seen = wall_seen | wall
+                if index in (1, 2, 5, 6):
+                    if i == 0 and wall_seen:
+                        break
+                elif index in (3, 4, 7, 8):
+                    if j == 0 and wall_seen:
+                        break
+            return seen
 
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if i == 0 and wall_seen:
-                break
-
-        # OCTANT 3
-        wall_seen = False
-        for i, j in iter_octant(3):
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if j == 0 and wall_seen:
-                break
-
-        # OCTANT 4
-        wall_seen = False
-        for i, j in iter_octant(4):
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-
-            wall_seen = wall_seen | wall
-            if j == 0 and wall_seen:
-                break
-
-        # OCTANT 5
-        wall_seen = False
-        for i, j in iter_octant(5):
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if i == 0 and wall_seen:
-                break
-
-        # OCTANT 6
-        wall_seen = False
-        for i, j in iter_octant(6):
-
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if i == 0 and wall_seen:
-                break
-
-        # OCTANT 7
-        wall_seen = False
-        for i, j in iter_octant(7):
-
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if j == 0 and wall_seen:
-                break
-
-        # OCTANT 8
-        wall_seen = False
-        for i, j in iter_octant(8):
-
-            if abs(j) >= 50 or abs(i) >= 50:
-                break
-            for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.BRIGHT
-                self.seen.append(viewable)
-
-            wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-            wall_seen = wall_seen | wall
-            if j == 0 and wall_seen:
-                break
+        # OCTANT 1-8
+        self.seen += scan(1, x, y, viewables)
+        self.seen += scan(2, x, y, viewables)
+        self.seen += scan(3, x, y, viewables)
+        self.seen += scan(4, x, y, viewables)
+        self.seen += scan(5, x, y, viewables)
+        self.seen += scan(6, x, y, viewables)
+        self.seen += scan(7, x, y, viewables)
+        self.seen += scan(8, x, y, viewables)
 
 
     def run_square_viewshed(self, game, viewshed_range=5):
