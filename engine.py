@@ -306,7 +306,10 @@ class AISystem:
                     self.movement_system.try_down(position)
 
 
+@dataclass
 class VisionSystem:
+    seen: list[Viewable] = field(default_factory=list)
+
     def run(self, game):
         self.run_shadow_casting(game)
 
@@ -318,13 +321,19 @@ class VisionSystem:
 
         viewables = Viewables.from_game(game)
 
+        # Dim bright viewables
+        for viewable in self.seen:
+            if viewable.luminosity == Luminosity.BRIGHT:
+                viewable.luminosity = Luminosity.DIM if viewable.terrain else Luminosity.HIDDEN
+
         # OCTANT 1
         wall_seen = False
         for i, j in iter_octant(1):
-            if j >= 50:
+            if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -334,10 +343,11 @@ class VisionSystem:
         # OCTANT 2
         wall_seen = False
         for i, j in iter_octant(2):
-            if j >= 50:
+            if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -347,10 +357,11 @@ class VisionSystem:
         # OCTANT 3
         wall_seen = False
         for i, j in iter_octant(3):
-            if j >= 50:
+            if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -363,7 +374,8 @@ class VisionSystem:
             if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
 
@@ -377,7 +389,8 @@ class VisionSystem:
             if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -391,7 +404,8 @@ class VisionSystem:
             if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -405,7 +419,8 @@ class VisionSystem:
             if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
@@ -419,7 +434,8 @@ class VisionSystem:
             if abs(j) >= 50 or abs(i) >= 50:
                 break
             for viewable in viewables[x + i, y + j]:
-                viewable.luminosity = Luminosity.DIM
+                viewable.luminosity = Luminosity.BRIGHT
+                self.seen.append(viewable)
 
             wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
             wall_seen = wall_seen | wall
