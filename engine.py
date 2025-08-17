@@ -381,18 +381,34 @@ def out_of_bounds(x: int, y: int) -> bool:
     return (x < 0) | (y < 0) | (x >= curses.COLS) | (y >= curses.LINES)
 
 
-def scan(index: int, x: int, y: int, viewables: Viewables) -> list[Viewable]:
+def scan(index: int, x: int, y: int, viewables: Viewables, slope_range=None) -> list[Viewable]:
+    # TODO: Separate scan start from light source origin
     seen = []
     wall_seen = False
     for i, j in iter_octant(index):
         if out_of_bounds(x + i, y + j):
             break
 
+        # Limit scan to between two rays
+        if slope_range is not None:
+            a, b = (x, y), (x + i, y + j)
+            if index in (1, 2, 5, 6):
+                m = inverse_slope(a, b)
+            elif index in (3, 4, 7, 8):
+                m = slope(a, b)
+            if (m < slope_range[0]) or (m > slope_range[1]):
+                continue
+
+        # Gather viewables in lit area
         for viewable in viewables[x + i, y + j]:
             seen.append(viewable)
 
         # TODO: Recursive scan when wall/opening encountered
         wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
+        if wall and index == 1:
+            slope_range = (0, 0.5)
+            seen += scan(index, x + i - 1, y + j, viewables, slope_range=slope_range)
+
         wall_seen = wall_seen | wall
         if index in (1, 2, 5, 6):
             if i == 0 and wall_seen:
@@ -510,8 +526,17 @@ def test_vision_system_shadow_casting():
     assert next(iterator) == (-2, 0)
 
 
+def inverse_slope(a: tuple[int, int], b: tuple[int, int]) -> float:
+    (x1, y1), (x2, y2) = a, b
+    if y1 == y2:
+        return float("inf")
+    return (x2 - x1) / (y2 - y1)
+
+
 def slope(a: tuple[int, int], b: tuple[int, int]) -> float:
     (x1, y1), (x2, y2) = a, b
+    if x1 == x2:
+        return float("inf")
     return (y2 - y1) / (x2 - x1)
 
 
@@ -519,6 +544,15 @@ def test_slope():
     assert slope((0, 0), (1, 1)) == 1.0
     assert slope((0, 0), (1, 0)) == 0.0
     assert slope((0, 0), (0.1, 1)) == 10.0
+
+
+def test_inverse_slope():
+    assert inverse_slope((0, 0), (-1, 1)) == -1.0
+    assert inverse_slope((0, 0), (1, 1)) == 1.0
+    assert inverse_slope((0, 0), (0, 1)) == 0.0
+    assert inverse_slope((0, 0), (0, -1)) == 0.0
+    assert inverse_slope((0, 0), (1, -1)) == -1.0
+    assert inverse_slope((0, 0), (-1, -1)) == 1.0
 
 
 # GAME
