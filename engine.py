@@ -377,24 +377,24 @@ class Viewables:
         return cls(vs)
 
 
-def out_of_bounds(x: int, y: int) -> bool:
+def screen_bounds(x: int, y: int) -> bool:
     return (x < 0) | (y < 0) | (x >= curses.COLS) | (y >= curses.LINES)
 
 
-def scan(index: int, x: int, y: int, viewables: Viewables, slope_range=None) -> list[Viewable]:
+def scan(octant: int, x: int, y: int, viewables: Viewables, slope_range=None, bounds_check=screen_bounds) -> list[Viewable]:
     # TODO: Separate scan start from light source origin
     seen = []
     wall_seen = False
-    for i, j in iter_octant(index):
-        if out_of_bounds(x + i, y + j):
+    for i, j in iter_octant(octant):
+        if bounds_check(x + i, y + j):
             break
 
         # Limit scan to between two rays
         if slope_range is not None:
             a, b = (x, y), (x + i, y + j)
-            if index in (1, 2, 5, 6):
+            if octant in (1, 2, 5, 6):
                 m = inverse_slope(a, b)
-            elif index in (3, 4, 7, 8):
+            elif octant in (3, 4, 7, 8):
                 m = slope(a, b)
             if (m < slope_range[0]) or (m > slope_range[1]):
                 continue
@@ -405,18 +405,38 @@ def scan(index: int, x: int, y: int, viewables: Viewables, slope_range=None) -> 
 
         # TODO: Recursive scan when wall/opening encountered
         wall = any(viewable.opaque for viewable in viewables[x + i, y + j])
-        if wall and index == 1:
+        if wall and octant == 1:
             slope_range = (0, 0.5)
-            seen += scan(index, x + i - 1, y + j, viewables, slope_range=slope_range)
+            seen += scan(octant, x + i - 1, y + j, viewables, slope_range=slope_range, bounds_check=bounds_check)
 
         wall_seen = wall_seen | wall
-        if index in (1, 2, 5, 6):
+        if octant in (1, 2, 5, 6):
             if i == 0 and wall_seen:
                 break
-        elif index in (3, 4, 7, 8):
+        elif octant in (3, 4, 7, 8):
             if j == 0 and wall_seen:
                 break
     return seen
+
+
+def test_scan():
+    octant = 1
+    x, y = 0, 0
+    viewables = {
+        (-2, 3): [Viewable()],
+        (-1, 3): [Viewable()],
+        (0, 3): [Viewable()],
+        (-2, 2): [],
+        (-1, 2): [Viewable()],
+        (0, 2): [],
+        (-1, 1): [Viewable(opaque=True)],
+        (0, 1): [],
+    }
+    bounds_check = lambda x, y: (y > 3)
+    actual = scan(octant, x, y, viewables, bounds_check=bounds_check)
+    expected = viewables[-1, 1]
+    assert actual == expected
+
 
 def test_viewables_lookup_table():
     game = Game()
