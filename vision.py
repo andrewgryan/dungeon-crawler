@@ -23,31 +23,37 @@ class VisionSystem:
             break
         return x, y
 
-    def run_shadow_casting(self, game):
-        x, y = self.get_player_position(game)
-
-        viewables = Viewables.from_game(game)
-
-        # Dim previously bright viewables
+    def dim_seen_viewables(self):
         for viewable in self.seen:
             if viewable.luminosity == Luminosity.BRIGHT:
                 viewable.luminosity = Luminosity.DIM if viewable.terrain else Luminosity.HIDDEN
 
-        # Reset seen viewables
-        self.seen = []
+    def run_shadow_casting(self, game):
+        x, y = self.get_player_position(game)
 
-        # OCTANT 1-8
-        self.seen += scan(1, x, y, viewables)
-        self.seen += scan(2, x, y, viewables)
-        self.seen += scan(3, x, y, viewables)
-        self.seen += scan(4, x, y, viewables)
-        self.seen += scan(5, x, y, viewables)
-        self.seen += scan(6, x, y, viewables)
-        self.seen += scan(7, x, y, viewables)
-        self.seen += scan(8, x, y, viewables)
+        # Dim previously bright viewables
+        self.dim_seen_viewables()
 
+        self.seen = self.run_algorithm(x, y, game)
+
+        # Illuminate seen viewables
         for viewable in self.seen: 
             viewable.luminosity = Luminosity.BRIGHT
+
+    def run_algorithm(self, x, y, game):
+        viewables = Viewables.from_game(game)
+
+        # OCTANT 1-8
+        seen = []
+        seen += scan(1, x, y, viewables)
+        seen += scan(2, x, y, viewables)
+        seen += scan(3, x, y, viewables)
+        seen += scan(4, x, y, viewables)
+        seen += scan(5, x, y, viewables)
+        seen += scan(6, x, y, viewables)
+        seen += scan(7, x, y, viewables)
+        seen += scan(8, x, y, viewables)
+        return seen
 
     def run_square_viewshed(self, game, viewshed_range=5):
         for _, player_position, viewable in game.iter_traits(Player, Position, Viewable):
