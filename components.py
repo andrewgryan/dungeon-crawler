@@ -3,6 +3,11 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class Player:
+    health: int = 100
+
+
+@dataclass
 class Position:
     x: int
     y: int
