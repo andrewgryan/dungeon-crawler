@@ -1,3 +1,4 @@
+#!/usr/bin/env -S uv run --script
 """Dungeon crawler"""
 import textwrap
 import random
@@ -12,32 +13,20 @@ import curses.ascii
 import curses.textpad
 
 from curses import wrapper
-
-
-@dataclass
-class Position:
-    x: int
-    y: int
+from game import Game
+from components import (
+    Player,
+    Position,
+    Luminosity,
+    Viewable
+)
+from vision import VisionSystem
 
 
 @dataclass
 class Renderable:
     char: str = "@"
     color: int = curses.COLOR_BLUE
-
-# VISION
-
-class Luminosity(Enum):
-    BRIGHT = 1
-    DIM = 2
-    HIDDEN = 3
-
-@dataclass
-class Viewable:
-    opaque: bool = False
-    luminosity: Luminosity = Luminosity.HIDDEN
-    terrain: bool = False
-
 
 
 # TERRAIN
@@ -80,37 +69,6 @@ class Compass(Enum):
 class PatrolBot:
     direction: Compass
     room: Room
-
-
-@dataclass
-class Player:
-    health: int = 100
-
-
-@dataclass
-class Entity:
-    components: dict[str, str] = field(default_factory=dict)
-
-    def has(self, *traits):
-        return all(trait in self.components for trait in traits)
-
-    def get(self, *traits):
-        return tuple(self.components[trait] for trait in traits)
-
-    def __add__(self, component):
-        return self.add(component)
-
-    def add(self, component):
-        self.components[component.__class__] = component
-        return self
-
-    def remove_trait(self, trait):
-        del self.components[trait]
-        return self
-
-    def reset(self):
-        # Convert to bare entity
-        self.components = {}
 
 
 # EQUIPMENT
@@ -305,47 +263,9 @@ class AISystem:
                     self.movement_system.try_down(position)
 
 
-class VisionSystem:
-    def run(self, game):
-        viewshed_range = 5
-        for _, player_position, viewable in game.iter_traits(Player, Position, Viewable):
-            viewable.luminosity = Luminosity.BRIGHT
-            player_x, player_y = player_position.x, player_position.y
-            for position, viewable in game.iter_traits(Position, Viewable):
-                if (abs(position.x - player_x) <= viewshed_range) and (abs(position.y - player_y) <= viewshed_range):
-                    viewable.luminosity = Luminosity.BRIGHT
-                else:
-                    if not viewable.terrain:
-                        viewable.luminosity = Luminosity.HIDDEN
-                    elif viewable.luminosity == Luminosity.BRIGHT:
-                        viewable.luminosity = Luminosity.DIM
 
 
 # GAME
-
-@dataclass
-class Game:
-    entities: list[Entity] = field(default_factory=list)
-
-    def with_entity(self):
-        entity = Entity()
-        self.entities.append(entity)
-        return entity
-
-    def iter_entities(self, *traits):
-        for entity in self.entities:
-            if entity.has(*traits):
-                yield entity
-
-    def iter_traits(self, *traits):
-        for entity in self.iter_entities(*traits):
-            yield entity.get(*traits)
-
-    def iter_by_component(self, component):
-        for entity in self.iter_entities(component.__class__):
-            if entity.components[component.__class__] == component:
-                yield entity
-
 
 @dataclass
 class MapSystem:
@@ -416,7 +336,7 @@ class StatusBar:
             self.stdscr.addstr(0, 0, f"health: {pl.health}")
 
 
-def help_text(width: int): 
+def help_text(width: int):
     text_wrapper = TextWrapper(width=width - 2)
     paragraphs = [
         "Greetings, Traveller!",
@@ -544,14 +464,21 @@ def dungeon_crawler(stdscr):
             Viewable())
 
     # Player
-    player = game.with_entity() + Player() + Backpack() + Position(20, 10) + Renderable("@", curses.COLOR_YELLOW) + Viewable()
+    player = (
+        game.with_entity() +
+        Player() +
+        Backpack() +
+        Position(20, 10) +
+        Renderable("@", curses.COLOR_YELLOW) +
+        Viewable(luminosity=Luminosity.BRIGHT)
+    )
     player_position, = player.get(Position)
 
     # Movement
     movement_system.cache_impassable(game)
     render_system.paint(game)
     last_paint = datetime.now()
-    refresh_rate = timedelta(microseconds=16.7 * 1000)
+    refresh_rate = timedelta(microseconds=(1000 * 1000) // 60)
     while True:
 
         # Throttle render system
@@ -675,18 +602,6 @@ def test_show_inventory():
     player = game.with_entity() + Player() + Backpack(items=[torch])
     inventory = InventorySystem()
     assert list(inventory.lines(game)) == ["- Torch", "Useful in rooms without electric", "lights", ""]
-
-
-def test_vision_system():
-    game = Game()
-    player = game.with_entity() + Player() + Position(0, 0) + Viewable()
-    for i in range(5):
-        game.with_entity() + Position(i, 0) + Viewable()
-    game.with_entity() + Viewable(opaque=True) + Position(1, 0)
-    vision_system = VisionSystem()
-    vision_system.run(game)
-    actual = [position.x for viewable, position in game.iter_traits(Viewable, Position) if viewable.visible]
-    assert actual == [0, 0, 1, 1]
 
 
 if __name__ == "__main__":
