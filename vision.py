@@ -15,11 +15,16 @@ class VisionSystem:
     def run(self, game):
         self.run_shadow_casting(game)
 
-    def run_shadow_casting(self, game):
+    @staticmethod
+    def get_player_position(game):
         x, y = None, None
         for position, _, _ in game.iter_traits(Position, Player, Viewable):
             x, y = position.x, position.y
             break
+        return x, y
+
+    def run_shadow_casting(self, game):
+        x, y = self.get_player_position(game)
 
         viewables = Viewables.from_game(game)
 
