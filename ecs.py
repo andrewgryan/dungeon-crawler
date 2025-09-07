@@ -12,10 +12,19 @@ class Position:
         yield self.x
         yield self.y
 
+    def clone(self):
+        return Position(self.x, self.y)
+
+
+@dataclass
+class Player:
+    ...
+
 
 @dataclass
 class Backpack:
     ...
+
 
 @dataclass
 class NPC:
@@ -34,7 +43,7 @@ class Viewable:
     opaque: bool = True
 
 
-Component = Position | Renderable | Backpack | Viewable
+Component = Position | Renderable | Backpack | Viewable | Player
 
 
 class Game:
@@ -61,11 +70,13 @@ class Game:
 
 def player(i, j):
     return (
+        Player(),
         Position(i, j),
         Renderable("@"),
         Backpack(),
         Viewable()
     )
+
 
 def bot(i, j):
     return (
@@ -83,14 +94,13 @@ def wall(i, j):
         Viewable(opaque=True)
     )
 
+
 def floor(i, j):
     return (
         Position(i, j),
         Renderable("."),
         Viewable(opaque=False)
     )
-
-
 
 
 class RenderSystem:
@@ -105,18 +115,50 @@ class RenderSystem:
 
     def debug(self, obj):
         msg = str(obj)
-        n_after = len(msg)
-        n = max(self.n_debug, n_after)
+        n = max(self.n_debug, len(msg))
         self.stdscr.addnstr(curses.LINES - 2, curses.COLS - n, msg.rjust(n), n)
-        self.n_debug = n_after
+        self.n_debug = len(msg)
 
     def run(self, game):
         for (x, y), (c,) in game.iter_traits(Position, Renderable):
-            self.stdscr.addch(x, y, c)
+            self.stdscr.addch(y, x, c)
+
+    def repaint(self, game, positions):
+        for position, (c,) in game.iter_traits(Position, Renderable):
+            if position in positions:
+                x, y = position
+                self.stdscr.addch(y, x, c)
+
+
+class MovementSystem:
+    def down(self, game):
+        for player, position in game.iter_traits(Player, Position):
+            yield position.clone()
+            position.y += 1
+            yield position.clone()
+
+    def up(self, game):
+        for player, position in game.iter_traits(Player, Position):
+            yield position.clone()
+            position.y -= 1
+            yield position.clone()
+
+    def left(self, game):
+        for player, position in game.iter_traits(Player, Position):
+            yield position.clone()
+            position.x -= 1
+            yield position.clone()
+
+    def right(self, game):
+        for player, position in game.iter_traits(Player, Position):
+            yield position.clone()
+            position.x += 1
+            yield position.clone()
 
 
 def main(stdscr):
     render_system = RenderSystem(stdscr).setup()
+    movement_system = MovementSystem()
 
     game = Game()
     n = 30
@@ -142,13 +184,29 @@ def main(stdscr):
     }
     while True:
         c = stdscr.getch()
-        if c == 113:
+        if keymap.get(c) == "q":
             render_system.debug("Are you sure? y/n")
             c = stdscr.getch()
-            if c == 121:
+            if keymap.get(c) == "y":
                 break
-            elif c == 110:
+            elif keymap.get(c) == "n":
                 render_system.debug("")
+        elif keymap.get(c) == "j":
+            changed = list(movement_system.down(game))
+            render_system.debug(changed)
+            render_system.repaint(game, changed)
+        elif keymap.get(c) == "k":
+            changed = list(movement_system.up(game))
+            render_system.debug(changed)
+            render_system.repaint(game, changed)
+        elif keymap.get(c) == "h":
+            changed = list(movement_system.left(game))
+            render_system.debug(changed)
+            render_system.repaint(game, changed)
+        elif keymap.get(c) == "l":
+            changed = list(movement_system.right(game))
+            render_system.debug(changed)
+            render_system.repaint(game, changed)
         elif c in keymap:
             render_system.debug(keymap[c])
         else:
